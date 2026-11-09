@@ -138,7 +138,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     margin: const EdgeInsets.only(bottom: 20),
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.red.withOpacity(0.15),
+                      color: Colors.red.withValues(alpha: 0.15),
                       border: Border.all(color: Colors.red.shade400),
                       borderRadius: BorderRadius.circular(8),
                     ),
