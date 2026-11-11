@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
@@ -57,15 +56,15 @@ class _MainScreenState extends State<MainScreen> {
         unselectedItemColor: AppTheme.textSecondary,
         items: const [
           BottomNavigationBarItem(
-            icon: Icon(LucideIcons.home),
+            icon: Icon(Icons.home),
             label: 'Home',
           ),
           BottomNavigationBarItem(
-            icon: Icon(LucideIcons.search),
+            icon: Icon(Icons.search),
             label: 'Cari',
           ),
           BottomNavigationBarItem(
-            icon: Icon(LucideIcons.music),
+            icon: Icon(Icons.library_music),
             label: 'Koleksi',
           ),
         ],

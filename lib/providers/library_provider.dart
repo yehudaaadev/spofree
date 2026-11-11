@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../models/track_model.dart';
 import '../services/download_service.dart';
+import '../services/music_service.dart';
 
 class PlaylistModel {
   final String id;
@@ -138,6 +139,20 @@ class LibraryProvider with ChangeNotifier {
     });
   }
 
+  Future<void> importFullPlaylist(String name, List<TrackModel> tracks) async {
+    if (_userId == null || name.trim().isEmpty) return;
+    await _firestore
+        .collection('users')
+        .doc(_userId)
+        .collection('playlists')
+        .add({
+      'name': name.trim(),
+      'tracks': tracks.map((t) => t.toMap()).toList(),
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
   Future<void> addTrackToPlaylist(String playlistId, TrackModel track) async {
     if (_userId == null) return;
     final docRef = _firestore
@@ -209,6 +224,51 @@ class LibraryProvider with ChangeNotifier {
     } catch (_) {
       return null;
     }
+  }
+
+  bool _isBulkDownloading = false;
+  double _bulkDownloadProgress = 0.0;
+  int _bulkCurrentIndex = 0;
+  int _bulkTotalCount = 0;
+
+  bool get isBulkDownloading => _isBulkDownloading;
+  double get bulkDownloadProgress => _bulkDownloadProgress;
+  int get bulkCurrentIndex => _bulkCurrentIndex;
+  int get bulkTotalCount => _bulkTotalCount;
+
+  Future<void> bulkDownloadTracks(List<TrackModel> tracks, MusicService musicService) async {
+    final toDownload = tracks.where((t) => !isDownloaded(t.id)).toList();
+    if (toDownload.isEmpty || _isBulkDownloading) return;
+
+    _isBulkDownloading = true;
+    _bulkTotalCount = toDownload.length;
+    _bulkCurrentIndex = 0;
+    _bulkDownloadProgress = 0.0;
+    notifyListeners();
+
+    for (int i = 0; i < toDownload.length; i++) {
+      _bulkCurrentIndex = i + 1;
+      final track = toDownload[i];
+      try {
+        final streamUrl = await musicService.resolveAudioStream(track);
+        await _downloadService.downloadTrack(
+          track: track,
+          audioStreamUrl: streamUrl,
+          onProgress: (p) {
+            _bulkDownloadProgress = ((i + p) / _bulkTotalCount).clamp(0.0, 1.0);
+            notifyListeners();
+          },
+        );
+      } catch (_) {}
+    }
+
+    _isBulkDownloading = false;
+    _bulkDownloadProgress = 0.0;
+    await refreshDownloaded();
+  }
+
+  Future<String?> exportTrackToMp3(TrackModel track, {String folderName = 'Download'}) async {
+    return await _downloadService.exportToDirectory(track, folderName: folderName);
   }
 
   Future<void> removeDownloadedTrack(String trackId) async {

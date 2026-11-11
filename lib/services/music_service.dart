@@ -13,6 +13,31 @@ class MusicService {
   final Map<String, String> _videoIdCache = {};
   final Map<String, String> _streamUrlCache = {};
 
+  Future<List<TrackModel>> getRelatedTracks(TrackModel track) async {
+    if (track.artist.isNotEmpty && track.artist.toLowerCase() != 'unknown artist') {
+      try {
+        final response = await _dio.get(
+          'https://api.deezer.com/search',
+          queryParameters: {'q': track.artist, 'limit': 15},
+        );
+        if (response.statusCode == 200) {
+          final data = response.data is String ? json.decode(response.data) : response.data;
+          final tracksData = data['data'] as List<dynamic>? ?? [];
+          final tracks = tracksData
+              .map((item) => TrackModel.fromDeezer(item as Map<String, dynamic>))
+              .where((t) => t.id != track.id && t.title.toLowerCase() != track.title.toLowerCase())
+              .toList();
+          if (tracks.isNotEmpty) {
+            return tracks;
+          }
+        }
+      } catch (_) {}
+    }
+
+    final fallbackQuery = '${track.artist} Radio Mix';
+    return searchDeezer(fallbackQuery);
+  }
+
   Future<List<TrackModel>> getChartTracks() async {
     try {
       final response = await _dio.get('https://api.deezer.com/chart');
@@ -66,9 +91,10 @@ class MusicService {
     }
   }
 
-  Future<String> resolveAudioStream(TrackModel track) async {
-    if (_streamUrlCache.containsKey(track.id)) {
-      return _streamUrlCache[track.id]!;
+  Future<String> resolveAudioStream(TrackModel track, {String quality = 'Maksimal'}) async {
+    final cacheKey = '${track.id}_$quality';
+    if (_streamUrlCache.containsKey(cacheKey)) {
+      return _streamUrlCache[cacheKey]!;
     }
 
     String? videoId = track.youtubeId ?? _videoIdCache[track.id];
@@ -105,10 +131,29 @@ class MusicService {
     }
 
     final manifest = await _yt.videos.streamsClient.getManifest(VideoId(videoId));
-    final audioStream = manifest.audioOnly.withHighestBitrate();
-    final streamUrl = audioStream.url.toString();
+    final sorted = manifest.audioOnly.sortByBitrate().toList();
+    AudioStreamInfo selectedStream;
 
-    _streamUrlCache[track.id] = streamUrl;
+    if (sorted.isEmpty) {
+      selectedStream = manifest.audioOnly.withHighestBitrate();
+    } else if (quality.contains('64') || quality.toLowerCase().contains('hemat')) {
+      selectedStream = sorted.first;
+    } else if (quality.contains('128') || quality.toLowerCase().contains('standar')) {
+      selectedStream = sorted.first;
+      int minDiff = 999999;
+      for (final s in sorted) {
+        final diff = (s.bitrate.kiloBitsPerSecond - 128).abs().toInt();
+        if (diff < minDiff) {
+          minDiff = diff;
+          selectedStream = s;
+        }
+      }
+    } else {
+      selectedStream = manifest.audioOnly.withHighestBitrate();
+    }
+
+    final streamUrl = selectedStream.url.toString();
+    _streamUrlCache[cacheKey] = streamUrl;
     return streamUrl;
   }
 

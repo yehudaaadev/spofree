@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
+import '../widgets/app_logo.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -56,23 +56,25 @@ class _AuthScreenState extends State<AuthScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Icon(
-                  LucideIcons.music,
-                  size: 64,
-                  color: AppTheme.primaryGreen,
+                const Center(
+                  child: AppLogo(
+                    size: 80,
+                    showText: true,
+                    textSize: 22,
+                    isVertical: true,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 const Text(
-                  'Jutaan Lagu.\nGratis di Sini.',
+                  'Jutaan Lagu. Gratis di Sini.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.textPrimary,
-                    height: 1.2,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: AppTheme.textSecondary,
                   ),
                 ),
-                const SizedBox(height: 36),
+                const SizedBox(height: 32),
 
                 Container(
                   decoration: BoxDecoration(
@@ -144,7 +146,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     ),
                     child: Row(
                       children: [
-                        const Icon(LucideIcons.alertCircle, color: Colors.red, size: 20),
+                        const Icon(Icons.error_outline, color: Colors.red, size: 20),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
@@ -164,7 +166,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     labelStyle: const TextStyle(color: AppTheme.textSecondary),
                     filled: true,
                     fillColor: AppTheme.surface,
-                    prefixIcon: const Icon(LucideIcons.user, color: AppTheme.textSecondary),
+                    prefixIcon: const Icon(Icons.person, color: AppTheme.textSecondary),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide.none,
@@ -183,10 +185,10 @@ class _AuthScreenState extends State<AuthScreen> {
                     labelStyle: const TextStyle(color: AppTheme.textSecondary),
                     filled: true,
                     fillColor: AppTheme.surface,
-                    prefixIcon: const Icon(LucideIcons.lock, color: AppTheme.textSecondary),
+                    prefixIcon: const Icon(Icons.lock, color: AppTheme.textSecondary),
                     suffixIcon: IconButton(
                       icon: Icon(
-                        _obscurePassword ? LucideIcons.eyeOff : LucideIcons.eye,
+                        _obscurePassword ? Icons.visibility_off : Icons.visibility,
                         color: AppTheme.textSecondary,
                       ),
                       onPressed: () {

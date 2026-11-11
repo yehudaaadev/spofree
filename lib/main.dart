@@ -39,7 +39,7 @@ class SpotifyCloneApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => PlayerProvider()),
       ],
       child: MaterialApp(
-        title: 'Spotify Free',
+        title: 'Wave Music',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.darkTheme,
         home: Consumer<AuthProvider>(

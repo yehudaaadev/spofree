@@ -46,3 +46,18 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Build artifacts & binaries
+release_apk/
+*.apk
+*.aab
+
+# Keystore & Android signing
+*.jks
+*.keystore
+key.properties
+local.properties
+
+# Environment & local credentials
+.env*
+!*.env.example

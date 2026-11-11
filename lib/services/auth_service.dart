@@ -10,7 +10,10 @@ class AuthService {
   User? get currentUser => _auth.currentUser;
 
   static String _formatEmail(String username) {
-    final sanitized = username.trim().toLowerCase().replaceAll(RegExp(r'\s+'), '');
+    var sanitized = username.trim().toLowerCase().replaceAll(RegExp(r'[^a-z0-9_.]'), '');
+    if (sanitized.isEmpty) {
+      sanitized = 'user_${DateTime.now().millisecondsSinceEpoch}';
+    }
     return '$sanitized@spotube.local';
   }
 
