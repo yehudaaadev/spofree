@@ -8,6 +8,7 @@ import '../models/track_model.dart';
 import '../providers/player_provider.dart';
 import '../services/music_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/track_options_sheet.dart';
 
 class _GenreCardData {
   final String title;
@@ -282,10 +283,21 @@ class _SearchTabState extends State<SearchTab> {
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
           ),
-          trailing: const Icon(Icons.play_circle_fill, color: AppTheme.textSecondary, size: 22),
+          trailing: IconButton(
+            icon: const Icon(Icons.more_vert, color: AppTheme.textSecondary, size: 20),
+            tooltip: 'Opsi Lagu',
+            onPressed: () {
+              HapticFeedback.selectionClick();
+              TrackOptionsSheet.show(context, track, contextQueue: _results);
+            },
+          ),
           onTap: () {
             HapticFeedback.selectionClick();
             player.playTrack(track, queue: _results);
+          },
+          onLongPress: () {
+            HapticFeedback.selectionClick();
+            TrackOptionsSheet.show(context, track, contextQueue: _results);
           },
         );
       },

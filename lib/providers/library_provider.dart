@@ -6,6 +6,7 @@ import '../models/track_model.dart';
 import '../services/download_service.dart';
 import '../services/local_library_service.dart';
 import '../services/music_service.dart';
+import '../services/playlist_backup_service.dart';
 
 /// Metadata sebuah playlist beserta lagunya.
 class PlaylistModel {
@@ -123,6 +124,19 @@ class LibraryProvider with ChangeNotifier {
       'tracks': tracks.map((t) => t.toMap()).toList(),
     };
     await _store.savePlaylists(playlists);
+    await refreshLibrary();
+  }
+
+  /// Memulihkan koleksi lagu disukai dan playlist dari berkas backup.
+  Future<void> restoreBackup(BackupPayload payload) async {
+    for (final track in payload.likedTracks) {
+      _likedTracks[track.id] = track;
+    }
+    await _store.saveLiked(_likedTracks);
+
+    for (final entry in payload.playlists.entries) {
+      await importFullPlaylist(entry.key, entry.value);
+    }
     await refreshLibrary();
   }
 

@@ -93,6 +93,9 @@ class MusicService {
   static final Map<String, _StreamCacheEntry> _streamUrlCache = {};
   static final Map<String, String> _videoIdCache = {};
 
+  /// Mengambil videoId YouTube yang sudah pernah di-resolve untuk track tertentu.
+  static String? getCachedVideoId(String trackId) => _videoIdCache[trackId];
+
   /// Target bitrate (kbps) untuk setiap pilihan kualitas pengguna.
   ///
   /// Fungsi murni agar dapat diuji tanpa jaringan.

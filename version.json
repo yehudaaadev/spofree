@@ -1,6 +1,6 @@
 {
-  "versionCode": 2,
-  "versionName": "1.0.1",
-  "releaseNotes": "Perbaikan notifikasi media Android 13+, proteksi pelepasan headset, penanganan interupsi telepon, dan panduan performa latar belakang.",
+  "versionCode": 3,
+  "versionName": "1.0.2",
+  "releaseNotes": "Integrasi SponsorBlock (skip intro/outro klip YouTube), antrean dua lapis Play Next, Stereo Balance, dan Backup Universal M3U/JSON.",
   "downloadUrl": "https://gitlab.com/davidyehudaaa/spotify-gratis/-/raw/main/apk/WaveMusic.apk?inline=false"
 }

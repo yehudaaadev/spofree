@@ -223,7 +223,78 @@ class EqualizerSheet extends StatelessWidget {
               inactiveColor: Colors.white12,
               onChanged: (val) => player.setCrossfadeSeconds(val.round()),
             ),
-            const SizedBox(height: 16),
+            const Divider(color: Colors.white10, height: 32),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Stereo Audio Balance',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  player.balance == 0.0
+                      ? 'Seimbang'
+                      : player.balance < 0
+                          ? 'Kiri ${((-player.balance) * 100).round()}%'
+                          : 'Kanan ${(player.balance * 100).round()}%',
+                  style: const TextStyle(
+                    color: Color(0xFF1DB954),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Menyesuaikan keseimbangan volume antara telinga kiri dan kanan.',
+              style: TextStyle(color: Colors.white54, fontSize: 12),
+            ),
+            Slider(
+              value: player.balance,
+              min: -1.0,
+              max: 1.0,
+              divisions: 20,
+              activeColor: const Color(0xFF1DB954),
+              inactiveColor: Colors.white12,
+              onChanged: (val) => player.setBalance(val),
+            ),
+            const Divider(color: Colors.white10, height: 32),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'SponsorBlock (Auto-Skip Non-Musik)',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Otomatis melewati intro hening, outro panjang, atau percakapan video klip YouTube.',
+                        style: TextStyle(color: Colors.white54, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+                Switch(
+                  value: player.sponsorBlockEnabled,
+                  activeThumbColor: const Color(0xFF1DB954),
+                  activeTrackColor: const Color(0xFF1DB954).withValues(alpha: 0.4),
+                  onChanged: (_) => player.toggleSponsorBlock(),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
           ],
         ),
       ),

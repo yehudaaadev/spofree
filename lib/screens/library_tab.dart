@@ -6,10 +6,12 @@ import '../models/track_model.dart';
 import '../providers/library_provider.dart';
 import '../providers/player_provider.dart';
 import '../services/local_audio_service.dart';
+import '../services/playlist_backup_service.dart';
 import '../services/update_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/export_audio_dialog.dart';
 import '../widgets/import_playlist_dialog.dart';
+import '../widgets/track_options_sheet.dart';
 
 class LibraryTab extends StatefulWidget {
   const LibraryTab({super.key});
@@ -342,6 +344,10 @@ class _LibraryTabState extends State<LibraryTab> {
                         onPressed: () => library.toggleLike(track),
                       ),
                 onTap: () => player.playTrack(track, queue: tracks),
+                onLongPress: () {
+                  HapticFeedback.selectionClick();
+                  TrackOptionsSheet.show(context, track, contextQueue: tracks);
+                },
               );
             },
           ),
@@ -786,12 +792,170 @@ class _LibraryTabState extends State<LibraryTab> {
                       ],
                     ),
                   ),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF282828),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFF383838)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Cadangan Koleksi (Universal Backup)',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        const Text(
+                          'Ekspor atau pulihkan seluruh lagu disukai dan playlist dalam format universal JSON atau M3U.',
+                          style: TextStyle(fontSize: 12, color: Colors.white70),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.white,
+                                side: const BorderSide(color: Color(0xFF484848)),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              onPressed: () async {
+                                final lib = context.read<LibraryProvider>();
+                                final playlistMap = <String, List<TrackModel>>{};
+                                for (final p in lib.playlists) {
+                                  playlistMap[p.name] = p.tracks;
+                                }
+                                try {
+                                  final file = await PlaylistBackupService.saveBackupToFile(
+                                    likedTracks: lib.likedList,
+                                    playlists: playlistMap,
+                                  );
+                                  if (context.mounted) {
+                                    Navigator.pop(context);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        backgroundColor: const Color(0xFF282828),
+                                        content: Text('Backup tersimpan di: ${file.path}'),
+                                        duration: const Duration(seconds: 4),
+                                      ),
+                                    );
+                                  }
+                                } catch (e) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('Gagal membuat backup: $e')),
+                                    );
+                                  }
+                                }
+                              },
+                              icon: const Icon(Icons.backup_outlined, size: 16),
+                              label: const Text('Ekspor JSON', style: TextStyle(fontSize: 12)),
+                            ),
+                            const SizedBox(width: 8),
+                            OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: AppTheme.primaryGreen,
+                                side: BorderSide(color: AppTheme.primaryGreen.withValues(alpha: 0.5)),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              onPressed: () {
+                                Navigator.pop(context);
+                                _showRestoreDialog(context);
+                              },
+                              icon: const Icon(Icons.restore, size: 16),
+                              label: const Text('Pulihkan', style: TextStyle(fontSize: 12)),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             );
           },
         );
       },
+    );
+  }
+
+  void _showRestoreDialog(BuildContext context) {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E1E),
+        title: const Text('Pulihkan dari JSON atau M3U', style: TextStyle(color: Colors.white, fontSize: 16)),
+        content: TextField(
+          controller: controller,
+          maxLines: 8,
+          style: const TextStyle(color: Colors.white, fontSize: 12),
+          decoration: const InputDecoration(
+            hintText: 'Tempel isi teks berkas JSON atau M3U di sini...',
+            hintStyle: TextStyle(color: Colors.white38, fontSize: 12),
+            filled: true,
+            fillColor: Color(0xFF282828),
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Batal', style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryGreen, foregroundColor: Colors.black),
+            onPressed: () async {
+              final text = controller.text.trim();
+              if (text.isEmpty) return;
+              final lib = context.read<LibraryProvider>();
+
+              if (text.startsWith('{')) {
+                final payload = PlaylistBackupService.importFromJsonString(text);
+                if (payload != null) {
+                  await lib.restoreBackup(payload);
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Berhasil memulihkan ${payload.likedTracks.length} lagu disukai dan ${payload.playlists.length} playlist')),
+                    );
+                  }
+                  return;
+                }
+              }
+
+              final tracks = PlaylistBackupService.importFromM3u(text);
+              if (tracks.isNotEmpty) {
+                await lib.importFullPlaylist('Impor M3U', tracks);
+                if (ctx.mounted) Navigator.pop(ctx);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Berhasil mengimpor ${tracks.length} lagu dari M3U')),
+                  );
+                }
+                return;
+              }
+
+              if (ctx.mounted) {
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                  const SnackBar(content: Text('Format JSON atau M3U tidak valid')),
+                );
+              }
+            },
+            child: const Text('Pulihkan', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
     );
   }
 }

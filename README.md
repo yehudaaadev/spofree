@@ -32,6 +32,10 @@ Aplikasi pemutar musik mandiri berpenampilan Spotify Premium dengan audio stream
 - Equalizer & Bass Boost (Preset Flat, Bass Boost, Rock, Pop, Vocal, Acoustic, Electronic, dan slider bass boost). Equalizer native hanya berjalan di Android; di platform lain kontrol Equalizer dinonaktifkan otomatis dan disertai keterangan.
 - Pitch Shift & Mode Vokal (Transpose nada semitone naik/turun, preset Karaoke, Slowed + Reverb, dan Nightcore).
 - Crossfade Transisi (Pilihan 0-12 detik untuk perpindahan lagu mulus tanpa jeda sunyi).
+- **SponsorBlock Otomatis**: Otomatis mendeteksi dan melewati bagian percakapan non-musik, intro hening, outro panjang, atau sponsor pada audio video YouTube via API SponsorBlock (`sponsor.ajay.app`).
+- **Stereo Audio Balance**: Pengatur keseimbangan audio kanal kiri dan kanan (-100% Kiri hingga +100% Kanan).
+- **Dua Lapis Antrean ("Putar Berikutnya" / Play Next)**: Menyisipkan lagu tepat setelah lagu yang sedang diputar sebelum melanjutkan urutan album/playlist asli.
+- **Cadangan Universal (M3U & JSON Backup)**: Ekspor dan pulihkan seluruh lagu disukai dan playlist ke format berkas M3U standar atau JSON mandiri.
 - Pilihan Kualitas Audio Bitrate (Hemat 64 kbps, Standar 128 kbps, Tinggi HQ 160-256 kbps, Maksimal 320 kbps).
 - **Smart Autoplay / Track Radio**: Saat antrean habis, aplikasi mengambil daftar dari endpoint `artist/{id}/radio` Deezer yang disusun berdasarkan karakter lagu (genre/era), bukan sekadar nama artis — jadi dari "Tulus" radio bisa menyeber ke genre lain, bukan numpuk lagu Tulus. Lagu yang sudah diputar dicatat di riwayat radio agar tidak diulang. Tersedia opsi "CAMPUR LAGU GLOBAL" untuk menyisipkan lagu chart global, dan dapat diaktifkan/dinonaktifkan lewat toggle di opsi pemutar.
 - Antrean Lagu Interaktif (Queue Sheet dengan fitur geser urutan / drag-and-drop).

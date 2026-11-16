@@ -286,6 +286,34 @@ class _PlayerSheetState extends State<PlayerSheet> {
 
               const SizedBox(height: 10),
 
+              if (player.skippedSegmentNotice != null)
+                Center(
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF282828),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppTheme.primaryGreen.withValues(alpha: 0.5)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.fast_forward, color: AppTheme.primaryGreen, size: 14),
+                        const SizedBox(width: 6),
+                        Text(
+                          player.skippedSegmentNotice!,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
               // Seekbar Slider
               SliderTheme(
                 data: SliderTheme.of(context).copyWith(

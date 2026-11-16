@@ -13,6 +13,7 @@ import '../models/track_model.dart';
 import '../services/download_service.dart';
 import '../services/lyrics_service.dart';
 import '../services/music_service.dart';
+import '../services/sponsorblock_service.dart';
 import '../services/youtube_stream_source.dart';
 
 /// Otak aplikasi pemutar.
@@ -29,6 +30,7 @@ class PlayerProvider with ChangeNotifier {
   final MusicService _musicService = MusicService.instance;
   final LyricsService _lyricsService = LyricsService();
   final DownloadService _downloadService = DownloadService();
+  final SponsorBlockService _sponsorBlockService = SponsorBlockService();
 
   final math.Random _random = math.Random();
 
@@ -89,6 +91,18 @@ class PlayerProvider with ChangeNotifier {
   double _bassBoostGain = 0.0;
   List<double> _customBandGains = [0.0, 0.0, 0.0, 0.0, 0.0];
 
+  // SponsorBlock
+  bool _sponsorBlockEnabled = true;
+  List<SponsorSegment> _activeSegments = [];
+  Duration? _lastSkippedUntil;
+  String? _skippedSegmentNotice;
+
+  // Audio Balance & Mono
+  double _balance = 0.0;
+
+  // Dua Lapis Antrean ("Play Next" vs Context Queue)
+  int _userQueueCount = 0;
+
   // Serialisasi playback & penanganan error.
   Future<void> _playChain = Future<void>.value();
   int _playToken = 0;
@@ -128,6 +142,7 @@ class PlayerProvider with ChangeNotifier {
     _initAudioSession();
     _loadRecentlyPlayed();
     _initEqualizer();
+    _loadPreferences();
   }
 
   TrackModel? get currentTrack => _currentTrack;
@@ -162,6 +177,12 @@ class PlayerProvider with ChangeNotifier {
   String get equalizerPreset => _equalizerPreset;
   double get bassBoostGain => _bassBoostGain;
   List<double> get customBandGains => _customBandGains;
+
+  bool get sponsorBlockEnabled => _sponsorBlockEnabled;
+  List<SponsorSegment> get activeSegments => _activeSegments;
+  String? get skippedSegmentNotice => _skippedSegmentNotice;
+  double get balance => _balance;
+  int get userQueueCount => _userQueueCount;
 
   /// Pesan error terakhir yang perlu ditampilkan ke pengguna.
   String? get errorMessage => _errorMessage;
@@ -260,6 +281,9 @@ class PlayerProvider with ChangeNotifier {
 
     _positionSub = _player.positionStream.listen((pos) {
       _position = pos;
+      if (_sponsorBlockEnabled && _activeSegments.isNotEmpty) {
+        _checkSponsorSegments(pos);
+      }
       if (_crossfadeSeconds > 0 &&
           _duration > Duration(seconds: _crossfadeSeconds + 2) &&
           pos >= _duration - Duration(seconds: _crossfadeSeconds) &&
@@ -328,6 +352,56 @@ class PlayerProvider with ChangeNotifier {
         await _loudnessEnhancer.setEnabled(_bassBoostGain > 0);
       } catch (e) {
         debugPrint('[Player] equalizer init gagal: $e');
+      }
+    }
+  }
+
+  Future<void> _loadPreferences() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (prefs.containsKey('spotube_sponsorblock')) {
+        _sponsorBlockEnabled = prefs.getBool('spotube_sponsorblock') ?? true;
+      }
+      if (prefs.containsKey('spotube_balance')) {
+        _balance = prefs.getDouble('spotube_balance') ?? 0.0;
+      }
+      notifyListeners();
+    } catch (e) {
+      debugPrint('[Player] gagal memuat preferensi: $e');
+    }
+  }
+
+  void _checkSponsorSegments(Duration pos) {
+    if (_lastSkippedUntil != null && pos < _lastSkippedUntil!) {
+      return;
+    }
+    for (final seg in _activeSegments) {
+      if (pos >= seg.start && pos < seg.end - const Duration(milliseconds: 300)) {
+        _lastSkippedUntil = seg.end;
+        seek(seg.end);
+        _skippedSegmentNotice =
+            'Melewati ${seg.category.label} (${seg.durationString})';
+        notifyListeners();
+        Future.delayed(const Duration(seconds: 4), () {
+          if (_skippedSegmentNotice != null) {
+            _skippedSegmentNotice = null;
+            notifyListeners();
+          }
+        });
+        break;
+      }
+    }
+  }
+
+  Future<void> _loadSponsorSegments(TrackModel track) async {
+    _activeSegments = [];
+    _lastSkippedUntil = null;
+    final ytId = track.youtubeId ?? MusicService.getCachedVideoId(track.id);
+    if (ytId != null && ytId.isNotEmpty) {
+      final segments = await _sponsorBlockService.getSegments(ytId);
+      if (_currentTrack?.id == track.id) {
+        _activeSegments = segments;
+        notifyListeners();
       }
     }
   }
@@ -482,6 +556,10 @@ class PlayerProvider with ChangeNotifier {
 
     _recordRecentlyPlayed(track);
     _fetchLyrics(track);
+    if (_userQueueCount > 0) {
+      _userQueueCount--;
+    }
+    _loadSponsorSegments(track);
 
     try {
       final mediaItem = MediaItem(
@@ -724,6 +802,49 @@ class PlayerProvider with ChangeNotifier {
       _loopMode = LoopMode.off;
       _player.setLoopMode(LoopMode.off);
     }
+    notifyListeners();
+  }
+
+  /// Memutar track ini persis setelah lagu yang sedang aktif selesai ("Play Next").
+  void playNext(TrackModel track) {
+    if (_queue.isEmpty) {
+      playTrack(track, queue: [track]);
+      return;
+    }
+    final insertIndex = (_currentIndex + 1 + _userQueueCount).clamp(0, _queue.length);
+    _queue.insert(insertIndex, track);
+    _userQueueCount++;
+    _trimQueue();
+    notifyListeners();
+  }
+
+  /// Menambahkan daftar track ke urutan "Putar Berikutnya".
+  void playNextList(List<TrackModel> tracks) {
+    if (tracks.isEmpty) return;
+    if (_queue.isEmpty) {
+      playTrack(tracks.first, queue: tracks);
+      return;
+    }
+    final insertIndex = (_currentIndex + 1 + _userQueueCount).clamp(0, _queue.length);
+    _queue.insertAll(insertIndex, tracks);
+    _userQueueCount += tracks.length;
+    _trimQueue();
+    notifyListeners();
+  }
+
+  /// Mengaktifkan atau menonaktifkan filter SponsorBlock.
+  Future<void> toggleSponsorBlock() async {
+    _sponsorBlockEnabled = !_sponsorBlockEnabled;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('spotube_sponsorblock', _sponsorBlockEnabled);
+    notifyListeners();
+  }
+
+  /// Mengatur keseimbangan audio kanal kiri (-1.0) hingga kanan (1.0).
+  Future<void> setBalance(double value) async {
+    _balance = value.clamp(-1.0, 1.0);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('spotube_balance', _balance);
     notifyListeners();
   }
 
