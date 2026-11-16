@@ -35,6 +35,31 @@ class MainActivity : AudioServiceActivity() {
                 when (call.method) {
                     "hasPermission" -> result.success(hasAllFilesAccess())
                     "requestPermission" -> requestAllFilesAccess(result)
+                    "openUrl" -> {
+                        val url = call.argument<String>("url")
+                        if (url != null) {
+                            try {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                                startActivity(intent)
+                                result.success(true)
+                            } catch (e: Exception) {
+                                result.error("OPEN_FAILED", e.message, null)
+                            }
+                        } else {
+                            result.error("INVALID_URL", "URL tidak boleh kosong", null)
+                        }
+                    }
+                    "openBatterySettings" -> {
+                        try {
+                            val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+                            startActivity(intent)
+                            result.success(true)
+                        } catch (e: Exception) {
+                            val intent = Intent(Settings.ACTION_SETTINGS)
+                            startActivity(intent)
+                            result.success(true)
+                        }
+                    }
                     else -> result.notImplemented()
                 }
             }

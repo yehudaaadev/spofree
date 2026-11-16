@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:audio_session/audio_session.dart';
 import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
@@ -113,6 +114,9 @@ class PlayerProvider with ChangeNotifier {
   StreamSubscription? _positionSub;
   StreamSubscription? _durationSub;
   StreamSubscription? _errorSub;
+  StreamSubscription? _becomingNoisySub;
+  StreamSubscription? _interruptionSub;
+  bool _playInterrupted = false;
 
   PlayerProvider() {
     _player = AudioPlayer(
@@ -121,6 +125,7 @@ class PlayerProvider with ChangeNotifier {
       ),
     );
     _initPlayer();
+    _initAudioSession();
     _loadRecentlyPlayed();
     _initEqualizer();
   }
@@ -272,6 +277,48 @@ class PlayerProvider with ChangeNotifier {
         notifyListeners();
       }
     });
+  }
+
+  Future<void> _initAudioSession() async {
+    try {
+      final session = await AudioSession.instance;
+      _becomingNoisySub = session.becomingNoisyEventStream.listen((_) {
+        if (_isPlaying) {
+          pause();
+        }
+      });
+      _interruptionSub = session.interruptionEventStream.listen((event) {
+        if (event.begin) {
+          switch (event.type) {
+            case AudioInterruptionType.duck:
+              break;
+            case AudioInterruptionType.pause:
+            case AudioInterruptionType.unknown:
+              if (_isPlaying) {
+                _playInterrupted = true;
+                pause();
+              }
+              break;
+          }
+        } else {
+          switch (event.type) {
+            case AudioInterruptionType.duck:
+              break;
+            case AudioInterruptionType.pause:
+              if (_playInterrupted) {
+                _playInterrupted = false;
+                resume();
+              }
+              break;
+            case AudioInterruptionType.unknown:
+              _playInterrupted = false;
+              break;
+          }
+        }
+      });
+    } catch (e) {
+      debugPrint('[Player] gagal menginisialisasi listener audio session: $e');
+    }
   }
 
   Future<void> _initEqualizer() async {
@@ -935,6 +982,8 @@ class PlayerProvider with ChangeNotifier {
     _positionSub?.cancel();
     _durationSub?.cancel();
     _errorSub?.cancel();
+    _becomingNoisySub?.cancel();
+    _interruptionSub?.cancel();
     _player.dispose();
     super.dispose();
   }

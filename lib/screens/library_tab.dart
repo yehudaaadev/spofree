@@ -6,6 +6,7 @@ import '../models/track_model.dart';
 import '../providers/library_provider.dart';
 import '../providers/player_provider.dart';
 import '../services/local_audio_service.dart';
+import '../services/update_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/export_audio_dialog.dart';
 import '../widgets/import_playlist_dialog.dart';
@@ -81,10 +82,10 @@ class _LibraryTabState extends State<LibraryTab> {
                       color: AppTheme.textPrimary,
                     ),
                   ),
-                  if (_selectedFilter == 2)
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_selectedFilter == 2) ...[
                         IconButton(
                           icon: const Icon(Icons.link, color: AppTheme.textPrimary),
                           tooltip: 'Impor Playlist',
@@ -100,7 +101,13 @@ class _LibraryTabState extends State<LibraryTab> {
                           onPressed: () => _showCreatePlaylistDialog(context),
                         ),
                       ],
-                    ),
+                      IconButton(
+                        icon: const Icon(Icons.info_outline, color: AppTheme.textPrimary),
+                        tooltip: 'Status & Bantuan',
+                        onPressed: () => _showAppInfoSheet(context),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -574,6 +581,217 @@ class _LibraryTabState extends State<LibraryTab> {
           ),
         ),
       ],
+    );
+  }
+
+  void _showAppInfoSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1E1E1E),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        bool isChecking = false;
+        String? statusMessage;
+        AppUpdateInfo? updateInfo;
+
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 36,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.white24,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Informasi & Bantuan',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF282828),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: const Color(0xFF383838)),
+                        ),
+                        child: Text(
+                          'v${UpdateService.currentVersionName}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppTheme.primaryGreen,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF282828),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFF383838)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Pembaruan Aplikasi',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        if (statusMessage != null)
+                          Text(
+                            statusMessage!,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: updateInfo?.hasUpdate == true
+                                  ? AppTheme.primaryGreen
+                                  : Colors.white70,
+                            ),
+                          )
+                        else
+                          const Text(
+                            'Periksa rilis terbaru langsung dari repository GitLab.',
+                            style: TextStyle(fontSize: 12, color: Colors.white70),
+                          ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF383838),
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              onPressed: isChecking
+                                  ? null
+                                  : () async {
+                                      setSheetState(() {
+                                        isChecking = true;
+                                        statusMessage = 'Memeriksa ke server GitLab...';
+                                      });
+                                      final info = await UpdateService.instance.checkForUpdate();
+                                      setSheetState(() {
+                                        isChecking = false;
+                                        updateInfo = info;
+                                        if (info.hasUpdate) {
+                                          statusMessage =
+                                              'Versi ${info.latestVersionName} tersedia: ${info.releaseNotes}';
+                                        } else {
+                                          statusMessage = 'Aplikasi sudah memakai versi paling mutakhir.';
+                                        }
+                                      });
+                                    },
+                              icon: isChecking
+                                  ? const SizedBox(
+                                      width: 14,
+                                      height: 14,
+                                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                    )
+                                  : const Icon(Icons.refresh, size: 16),
+                              label: const Text('Cek Update', style: TextStyle(fontSize: 12)),
+                            ),
+                            if (updateInfo?.hasUpdate == true) ...[
+                              const SizedBox(width: 8),
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppTheme.primaryGreen,
+                                  foregroundColor: Colors.black,
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                                onPressed: () {
+                                  UpdateService.instance.openDownloadUrl(updateInfo!.downloadUrl);
+                                },
+                                child: const Text(
+                                  'Unduh APK',
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF282828),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFF383838)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Optimasi Pemutaran Latar Belakang',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        const Text(
+                          'Ponsel Xiaomi (MIUI/HyperOS), Oppo, Vivo, atau Samsung kadang mematikan musik setelah layar mati lama. Ubah pembatasan baterai menjadi "Tidak Ada Batasan".',
+                          style: TextStyle(fontSize: 12, color: Colors.white70),
+                        ),
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            side: const BorderSide(color: Color(0xFF484848)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          onPressed: () {
+                            UpdateService.instance.openBatteryOptimizationSettings();
+                          },
+                          icon: const Icon(Icons.battery_charging_full, size: 16),
+                          label: const Text('Buka Pengaturan Baterai', style: TextStyle(fontSize: 12)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

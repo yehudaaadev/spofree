@@ -12,8 +12,12 @@
 3. **Local Persistence**: All user data (Liked Songs, Custom Playlists, Recently Played) are stored locally via `LocalLibraryService` using `SharedPreferences`. No external cloud or database dependencies.
 4. **Audio Export & Tagging**: Audio files are saved with native formats detected by header magic bytes (`AudioFormat.detect`). MP3 files receive ID3v2.3 tags (`Id3Writer`).
 5. **Storage Permissions**: Android 11+ scoped storage / `MANAGE_EXTERNAL_STORAGE` bridged through `StoragePermissionService` MethodChannel (`com.david.spotify_pribadi/storage`).
+6. **Android 13+ Media Notifications**: Declared `android.permission.POST_NOTIFICATIONS` in `AndroidManifest.xml` to ensure media controls render on modern Android lockscreens and notification bars.
+7. **Audio Session & Becoming Noisy**: Listened to `session.becomingNoisyEventStream` and `session.interruptionEventStream` in `PlayerProvider` to pause on headset/Bluetooth disconnection and restore gracefully on call completion.
+8. **In-App Version Checker & Battery Guide**: Added `UpdateService` querying `version.json` directly from GitLab repository and intent launcher for Android battery optimization (Doze mode) settings.
 
 ## Verification Status
+- Version: 1.0.1 (Build 2)
 - Static Analysis: `flutter analyze` passed (0 issues).
-- Unit Tests: `flutter test` passed (46/46 tests passing, including arbitrary seek range request).
-- Build: Release split-per-ABI APKs generated in `apk/` and `release_apk/`.
+- Unit Tests: `flutter test` passed (48/48 tests passing).
+- Build: Release split-per-ABI APKs generated in `apk/`.

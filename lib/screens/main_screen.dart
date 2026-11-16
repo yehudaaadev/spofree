@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../providers/library_provider.dart';
 import '../providers/player_provider.dart';
+import '../services/update_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/mini_player.dart';
 import 'home_tab.dart';
@@ -28,6 +29,58 @@ class _MainScreenState extends State<MainScreen> {
     SearchTab(),
     LibraryTab(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _checkUpdate();
+  }
+
+  Future<void> _checkUpdate() async {
+    await Future.delayed(const Duration(seconds: 4));
+    if (!mounted) return;
+    final info = await UpdateService.instance.checkForUpdate();
+    if (info.hasUpdate && mounted) {
+      _showUpdateBanner(info);
+    }
+  }
+
+  void _showUpdateBanner(AppUpdateInfo info) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: const Color(0xFF282828),
+        duration: const Duration(seconds: 10),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Versi baru ${info.latestVersionName} tersedia',
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+              ),
+            ),
+            if (info.releaseNotes.isNotEmpty)
+              Text(
+                info.releaseNotes,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: Colors.white70, fontSize: 11),
+              ),
+          ],
+        ),
+        action: SnackBarAction(
+          label: 'Unduh',
+          textColor: AppTheme.primaryGreen,
+          onPressed: () => UpdateService.instance.openDownloadUrl(info.downloadUrl),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {

@@ -18,8 +18,10 @@ Aplikasi pemutar musik mandiri berpenampilan Spotify Premium dengan audio stream
 - Bebas Iklan 100% (ekstraksi stream audio murni).
 - On-Demand Playback & Unlimited Skips (tanpa shuffle paksa dan tanpa batas skip).
 - Scrubbing Seekbar bebas maju-mundur detik lagu.
-- Background & Lockscreen Playback dengan kontrol media Android.
-- **Glassmorphic Mini Player**: Latar buram frosted glass dinamis, animasi Mini Equalizer 3-bar berdenyut saat lagu diputar, dan gestur geser horizontal (*swipe left/right*) untuk berpindah lagu berikutnya/sebelumnya dengan haptic feedback.
+- Background & Lockscreen Playback dengan kontrol media Android 13+ (`POST_NOTIFICATIONS`).
+- **Solid Spotify Mini Player**: Permukaan solid gelap khas Spotify (`#282828` dengan batas `#383838`), animasi Mini Equalizer 3-bar dinamis saat lagu diputar, dan gestur geser horizontal (*swipe left/right*) untuk berpindah lagu dengan haptic feedback.
+- **Proteksi Audio & Headset**: Otomatis menjeda musik saat earphone/Bluetooth dicabut (`becomingNoisy`) dan menangani interupsi panggilan telepon secara cerdas.
+- **Pengecekan Pembaruan & Bantuan Baterai**: Pengecekan update APK otomatis dari GitLab dan tombol pintasan optimasi baterai (Doze mode) untuk ponsel Xiaomi/HyperOS, Oppo, Vivo, dan Samsung.
 - **Mode Piringan Hitam (Vinyl Disc)**: Pilihan tampilan cover art klasik atau piringan hitam vinyl berputar mulus 360 derajat lengkap dengan alur refleksi cahaya realistis.
 - **Dynamic Ambient Glow & Artwork Breathing**: Pantulan cahaya radial di belakang album art yang membesar saat lagu diputar dan mengecil lembut saat dijeda.
 
