@@ -179,7 +179,7 @@ class PlayerProvider with ChangeNotifier {
   Future<void> retryCurrentTrack() async {
     final track = _currentTrack;
     if (track == null) return;
-    await playTrack(track, queue: _queue);
+    await playTrack(track, queue: _queue, initialPosition: _position);
   }
 
   /// Kontainer yang dipakai untuk stream [track].
@@ -199,10 +199,10 @@ class PlayerProvider with ChangeNotifier {
   /// Mengembalikan true bila pengulangan sudah dijadwalkan, sehingga pesan
   /// error tidak perlu ditampilkan (percobaan berikutnya yang akan
   /// memberi tahu hasilnya).
-  bool _scheduleMp4Fallback(TrackModel track) {
+  bool _scheduleMp4Fallback(TrackModel track, {Duration? resumePosition}) {
     if (_mp4FallbackTrackId == track.id) return false;
     _mp4FallbackTrackId = track.id;
-    unawaited(playTrack(track, queue: _queue));
+    unawaited(playTrack(track, queue: _queue, initialPosition: resumePosition));
     return true;
   }
 
@@ -242,9 +242,10 @@ class PlayerProvider with ChangeNotifier {
       debugPrint('[Player] error stream: $exception');
       _isLoadingAudio = false;
       final track = _currentTrack;
-      if (track != null && _scheduleMp4Fallback(track)) {
+      final currentPos = _position;
+      if (track != null && _scheduleMp4Fallback(track, resumePosition: currentPos)) {
         // Stream utama gagal: coba kontainer MP4/AAC lebih dulu sebelum
-        // menampilkan pesan error.
+        // menampilkan pesan error, memulihkan posisi lagu terakhir.
         return;
       }
       _setError(
@@ -367,14 +368,23 @@ class PlayerProvider with ChangeNotifier {
   /// sumber audio yang berjalan pada satu waktu. Permintaan yang sudah
   /// digantikan (mis. pengguna menekan lagu lain sebelum lagu sebelumnya selesai
   /// dimuat) dibatalkan secara halus.
-  Future<void> playTrack(TrackModel track, {List<TrackModel>? queue}) {
+  Future<void> playTrack(
+    TrackModel track, {
+    List<TrackModel>? queue,
+    Duration? initialPosition,
+  }) {
     final token = ++_playToken;
     final completer = Completer<void>();
 
     _playChain = _playChain.then((_) async {
       try {
         if (token != _playToken) return; // Permintaan sudah usang.
-        await _playTrackInternal(track, queue: queue, token: token);
+        await _playTrackInternal(
+          track,
+          queue: queue,
+          token: token,
+          initialPosition: initialPosition,
+        );
       } catch (e, st) {
         debugPrint('[Player] playTrack gagal: $e\n$st');
         if (token == _playToken) {
@@ -392,6 +402,7 @@ class PlayerProvider with ChangeNotifier {
     TrackModel track, {
     List<TrackModel>? queue,
     required int token,
+    Duration? initialPosition,
   }) async {
     if (queue != null && queue.isNotEmpty) {
       _queue = List.from(queue);
@@ -409,7 +420,7 @@ class PlayerProvider with ChangeNotifier {
 
     _currentTrack = track;
     _isLoadingAudio = true;
-    _position = Duration.zero;
+    _position = initialPosition ?? Duration.zero;
     _duration = Duration(milliseconds: track.durationMs);
 
     // Cadangan MP4/AAC hanya berlaku untuk lagu yang bermasalah saja.
@@ -447,6 +458,10 @@ class PlayerProvider with ChangeNotifier {
       }
 
       if (token != _playToken) return;
+
+      if (initialPosition != null && initialPosition > Duration.zero) {
+        await _player.seek(initialPosition);
+      }
 
       await _player.setSpeed(_playbackSpeed);
       try {

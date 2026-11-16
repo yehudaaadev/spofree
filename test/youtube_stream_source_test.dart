@@ -130,6 +130,41 @@ void main() {
     expect(bytes, direct.bytes);
   });
 
+  test('request range di pertengahan media (seek) langsung terambil tanpa loop dari awal',
+      () async {
+    final source = YouTubeStreamSource(
+      track: track,
+      quality: 'Standar (128 kbps)',
+      musicService: musicService,
+    );
+
+    // Simulasi ExoPlayer buffer di tengah lagu (offset ~1.5 MB).
+    const start = 1572864;
+    const end = start + 32768; // 32 KB.
+
+    late dynamic response;
+    try {
+      response = await source.request(start, end);
+    } catch (e) {
+      skipIfLimited(e);
+      return;
+    }
+
+    expect(response.offset, start);
+    expect(response.contentLength, end - start);
+
+    final bytes = <int>[];
+    try {
+      await for (final chunk in response.stream) {
+        bytes.addAll(chunk);
+      }
+    } catch (e) {
+      skipIfLimited(e);
+      return;
+    }
+    expect(bytes.length, end - start);
+  });
+
   test('preferredContainer mp4 menghasilkan stream MP4 (AAC)', () async {
     final source = YouTubeStreamSource(
       track: track,

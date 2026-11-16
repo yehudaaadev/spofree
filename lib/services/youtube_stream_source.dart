@@ -20,17 +20,13 @@ import 'ranged_http_client.dart';
 /// menggantung di detik 0.
 ///
 /// Solusinya: audio ditarik sendiri lewat [RangedHttpClient] dengan rentang
-/// byte eksplisit, lalu disajikan ke ExoPlayer melalui API `StreamAudioSource`
-/// milik just_audio (proxy lokal sudah menangani permintaan range & seek).
+/// byte eksplisit dan tangguh ([RangedHttpClient.fetchRangeResilient]), lalu
+/// disajikan ke ExoPlayer melalui API `StreamAudioSource` milik just_audio
+/// (proxy lokal menangani permintaan range & seek).
 ///
-/// Catatan penting tentang CDN YouTube:
-///
-/// - Setiap URL dari satu manifest disebut "sesi". Sesi hanya bisa dibaca
-///   berurutan mulai dari byte 0, dan punya kuota data terbatas.
-/// - Ketika kuota sesi habis (HTTP 403), sesi baru harus dibuat lewat
-///   manifest baru. Manifest baru membawa sesi baru dengan kuota baru.
-/// - Karena itu pembacaan selalu dilakukan berurutan dan posisi sesi
-///   dipantau agar tetap sinkron dengan data yang sudah dikirim ke pemutar.
+/// Bila CDN YouTube membatasi koneksi atau URL kedaluwarsa di pertengahan
+/// lagu, URL baru otomatis di-resolve dan request dilanjutkan pada byte offset
+/// yang sama tanpa perlu mengulang dari byte 0.
 class YouTubeStreamSource extends StreamAudioSource {
   YouTubeStreamSource({
     required this.track,
@@ -58,13 +54,6 @@ class YouTubeStreamSource extends StreamAudioSource {
   static const Duration _requestInterval = Duration(milliseconds: 150);
 
   ResolvedAudioStream? _resolved;
-
-  /// URL sesi aktif (berasal dari satu manifest).
-  Uri? _sessionUrl;
-
-  /// Jumlah byte yang sudah dibaca dari sesi aktif.
-  int _sessionPosition = 0;
-
   DateTime _lastRequestAt = DateTime.fromMillisecondsSinceEpoch(0);
 
   @override
@@ -133,68 +122,27 @@ class YouTubeStreamSource extends StreamAudioSource {
     }
   }
 
-  /// Membaca satu potongan data dari sesi aktif.
+  /// Membaca satu potongan data pada rentang [start] sampai [end] (inklusif).
   ///
-  /// Bila sesi aktif sudah tidak sinkron dengan posisi yang diminta (mis.
-  /// setelah seek atau setelah sesi habis), sesi baru dibuat dan
-  /// diproses Maju sampai posisi yang benar.
+  /// Menggunakan [RangedHttpClient.fetchRangeResilient] sehingga jika URL
+  /// kedaluwarsa atau server membalas HTTP 403 di tengah lagu, URL baru akan
+  /// diambil secara otomatis dan pengambilan dilanjutkan pada offset yang sama
+  /// tanpa perlu mengulang dari byte 0.
   Future<RangedResponse> _readChunk(int start, int end) async {
     await _throttle();
+    final resolved = await _resolve();
+    var currentUrl = Uri.parse(resolved.url);
 
-    if (_sessionUrl == null || _sessionPosition != start) {
-      await _openSession(start);
-    }
-
-    try {
-      final chunk = await _httpClient.fetchRange(
-        _sessionUrl!,
-        start: start,
-        end: end,
-      );
-      _sessionPosition = start + chunk.bytes.length;
-      return chunk;
-    } on RangedRequestForbidden {
-      // Kuota sesi habis: buat sesi baru (manifest baru) lalu ulangi.
-      await _openSession(start);
-      final chunk = await _httpClient.fetchRange(
-        _sessionUrl!,
-        start: start,
-        end: end,
-      );
-      _sessionPosition = start + chunk.bytes.length;
-      return chunk;
-    }
-  }
-
-  /// Membuat sesi baru dan memajuinya sampai posisi [target].
-  ///
-  /// Sesi YouTube hanya bisa dibaca berurutan mulai dari byte 0, jadi untuk
-  /// mencapai posisi tertentu data sebelumnya harus diunduh ulang (dan
-  /// dibuang). Pada kondisi normal sesi pertama sudah berada di posisi yang
-  /// benar sehingga jalur ini jarang dipakai.
-  Future<void> _openSession(int target) async {
-    final resolved = await _resolve(forceRefresh: true);
-    _sessionUrl = Uri.parse(resolved.url);
-    _sessionPosition = 0;
-
-    while (_sessionPosition < target) {
-      await _throttle();
-      final end = min(_sessionPosition + chunkSize, target) - 1;
-      try {
-        final chunk = await _httpClient.fetchRange(
-          _sessionUrl!,
-          start: _sessionPosition,
-          end: end,
-        );
-        if (chunk.bytes.isEmpty) break;
-        _sessionPosition += chunk.bytes.length;
-      } on RangedRequestForbidden {
-        throw RangedRequestException(
-          'YouTube membatasi unduhan stream untuk lagu ini. '
-          'Coba putar ulang atau gunakan lagu lain.',
-        );
-      }
-    }
+    return _httpClient.fetchRangeResilient(
+      currentUrl,
+      start: start,
+      end: end,
+      onForbidden: () async {
+        final newResolved = await _resolve(forceRefresh: true);
+        currentUrl = Uri.parse(newResolved.url);
+        return currentUrl;
+      },
+    );
   }
 
   /// Menunda request bila terlalu berdekatan dengan request sebelumnya.
