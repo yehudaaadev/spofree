@@ -1,5 +1,13 @@
 # Wave Music (Standalone Music Player)
 
+[![Download APK](https://img.shields.io/badge/Download_APK-Langsung_Pasang_(26_MB)-2ea44f?style=for-the-badge&logo=android&logoColor=white)](https://gitlab.com/davidyehudaaa/spotify-gratis/-/raw/main/apk/WaveMusic.apk?inline=false)
+
+> **Unduh & Pasang Langsung di HP Android:**
+> - [Download WaveMusic.apk (ARM64 - Rekomendasi Semua HP Modern)](https://gitlab.com/davidyehudaaa/spotify-gratis/-/raw/main/apk/WaveMusic.apk?inline=false)
+> - [Download WaveMusic-arm32.apk (Alternatif HP Android Lama)](https://gitlab.com/davidyehudaaa/spotify-gratis/-/raw/main/apk/WaveMusic-arm32.apk?inline=false)
+>
+> *Cara Pasang:* Ketuk link di atas untuk download langsung, lalu buka file APK di HP dan aktifkan izin "Install unknown apps" jika diminta.
+
 Aplikasi pemutar musik mandiri berpenampilan Spotify Premium dengan audio stream YouTube bebas iklan, cover art resmi Deezer HD 1:1, unduhan offline, dan lirik sinkron.
 
 **Tanpa login, tanpa akun, tanpa cloud.** Aplikasi langsung terbuka ke beranda musik saat dipasang. Lagu disukai, playlist, dan riwayat disimpan lokal di perangkat.

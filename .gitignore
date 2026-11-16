@@ -51,6 +51,7 @@ app.*.map.json
 release_apk/
 *.apk
 *.aab
+!apk/*.apk
 
 # Keystore & Android signing
 *.jks
