@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../models/track_model.dart';
-import '../providers/auth_provider.dart';
 import '../providers/player_provider.dart';
 import '../services/music_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/app_logo.dart';
 
 class HomeTab extends StatefulWidget {
   const HomeTab({super.key});
@@ -16,7 +16,7 @@ class HomeTab extends StatefulWidget {
 }
 
 class _HomeTabState extends State<HomeTab> {
-  final MusicService _musicService = MusicService();
+  final MusicService _musicService = MusicService.instance;
   List<TrackModel> _charts = [];
   bool _isLoading = true;
 
@@ -88,7 +88,6 @@ class _HomeTabState extends State<HomeTab> {
 
   @override
   Widget build(BuildContext context) {
-    final auth = context.watch<AuthProvider>();
     final player = context.watch<PlayerProvider>();
     final shortcutTracks = _getShortcutTracks(player);
 
@@ -118,9 +117,9 @@ class _HomeTabState extends State<HomeTab> {
                             ),
                           ),
                           const SizedBox(height: 2),
-                          Text(
-                            auth.username,
-                            style: const TextStyle(
+                          const Text(
+                            'Wave Music',
+                            style: TextStyle(
                               fontSize: 22,
                               fontWeight: FontWeight.bold,
                               color: AppTheme.textPrimary,
@@ -128,40 +127,7 @@ class _HomeTabState extends State<HomeTab> {
                           ),
                         ],
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.logout, color: AppTheme.textSecondary),
-                        tooltip: 'Keluar',
-                        onPressed: () {
-                          showDialog(
-                            context: context,
-                            builder: (ctx) => AlertDialog(
-                              backgroundColor: AppTheme.surface,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                              title: const Text('Keluar dari Akun', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                              content: const Text('Apakah kamu yakin ingin keluar dari Wave Music?', style: TextStyle(color: AppTheme.textSecondary)),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(ctx),
-                                  child: const Text('Batal', style: TextStyle(color: AppTheme.textSecondary)),
-                                ),
-                                ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.redAccent,
-                                    foregroundColor: Colors.white,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                  ),
-                                  onPressed: () {
-                                    Navigator.pop(ctx);
-                                    player.pause();
-                                    auth.logout();
-                                  },
-                                  child: const Text('Keluar', style: TextStyle(fontWeight: FontWeight.bold)),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
+                      const AppLogo(size: 44, showText: false),
                     ],
                   ),
                 ),

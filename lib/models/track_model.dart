@@ -10,6 +10,10 @@ class TrackModel {
   final String? youtubeId;
   final String? localPath;
 
+  /// MIME type kontainer audio (mis. `audio/mp4`). Disimpan agar pemutar dan
+  /// proses ekspor mengetahui format asli berkas tanpa menebak dari ekstensi.
+  final String? mimeType;
+
   const TrackModel({
     required this.id,
     required this.title,
@@ -19,11 +23,17 @@ class TrackModel {
     required this.durationMs,
     this.youtubeId,
     this.localPath,
+    this.mimeType,
   });
 
   bool get isDownloaded => localPath != null && localPath!.isNotEmpty;
 
+  /// Durasi yang benar-benar diketahui. Berkas lokal yang dipindai tidak
+  /// memiliki metadata durasi sehingga nilainya 0.
+  bool get hasKnownDuration => durationMs > 0;
+
   String get formattedDuration {
+    if (durationMs <= 0) return '--:--';
     final totalSeconds = (durationMs / 1000).round();
     final minutes = totalSeconds ~/ 60;
     final seconds = totalSeconds % 60;
@@ -39,6 +49,7 @@ class TrackModel {
     int? durationMs,
     String? youtubeId,
     String? localPath,
+    String? mimeType,
   }) {
     return TrackModel(
       id: id ?? this.id,
@@ -49,6 +60,7 @@ class TrackModel {
       durationMs: durationMs ?? this.durationMs,
       youtubeId: youtubeId ?? this.youtubeId,
       localPath: localPath ?? this.localPath,
+      mimeType: mimeType ?? this.mimeType,
     );
   }
 
@@ -62,6 +74,7 @@ class TrackModel {
       'durationMs': durationMs,
       'youtubeId': youtubeId,
       'localPath': localPath,
+      'mimeType': mimeType,
     };
   }
 
@@ -75,6 +88,7 @@ class TrackModel {
       durationMs: (map['durationMs'] as num?)?.toInt() ?? 0,
       youtubeId: map['youtubeId']?.toString(),
       localPath: map['localPath']?.toString(),
+      mimeType: map['mimeType']?.toString(),
     );
   }
 

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 import '../models/track_model.dart';
+import 'youtube_client.dart';
 
 class ImportedPlaylistResult {
   final String title;
@@ -16,7 +17,7 @@ class ImportedPlaylistResult {
 }
 
 class PlaylistImportService {
-  final YoutubeExplode _yt = YoutubeExplode();
+  final YoutubeExplode _yt = YoutubeClient.instance.client;
   final Dio _dio = Dio(
     BaseOptions(
       headers: {
@@ -29,10 +30,8 @@ class PlaylistImportService {
     ),
   );
 
-  void dispose() {
-    _yt.close();
-  }
-
+  /// Klien YouTube dipakai bersama, sehingga tidak ada resource per-instance
+  /// yang perlu ditutup.
   Future<ImportedPlaylistResult> importFromUrl(String url) async {
     final cleanUrl = url.trim();
 

@@ -27,7 +27,7 @@ class SearchTab extends StatefulWidget {
 
 class _SearchTabState extends State<SearchTab> {
   final TextEditingController _searchController = TextEditingController();
-  final MusicService _musicService = MusicService();
+  final MusicService _musicService = MusicService.instance;
   Timer? _debounce;
   List<TrackModel> _results = [];
   bool _isLoading = false;

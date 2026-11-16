@@ -23,7 +23,6 @@ class _ImportPlaylistDialogState extends State<ImportPlaylistDialog> {
   @override
   void dispose() {
     _urlController.dispose();
-    _importService.dispose();
     super.dispose();
   }
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../providers/library_provider.dart';
 import '../providers/player_provider.dart';
 import '../theme/app_theme.dart';
 
@@ -59,7 +60,7 @@ class PlaybackOptionsSheet extends StatelessWidget {
               ),
               const Divider(color: AppTheme.divider, height: 16),
 
-              // Autoplay Switch
+              // Autoplay / Track Radio Switch
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -68,7 +69,7 @@ class PlaybackOptionsSheet extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: const [
                         Text(
-                          'AUTOPLAY LAGU SERUPA',
+                          'TRACK RADIO (AUTOPLAY)',
                           style: TextStyle(
                             fontSize: 11,
                             letterSpacing: 1.2,
@@ -78,7 +79,8 @@ class PlaybackOptionsSheet extends StatelessWidget {
                         ),
                         SizedBox(height: 2),
                         Text(
-                          'Lanjutkan memutar musik serupa secara otomatis saat antrean habis',
+                          'Saat antrean habis, radio mengambil lagu ber karakter serupa '
+                          '(genre/era) dari Deezer dan memutar terus tanpa henti.',
                           style: TextStyle(
                             fontSize: 11,
                             color: AppTheme.textSecondary,
@@ -94,6 +96,43 @@ class PlaybackOptionsSheet extends StatelessWidget {
                   ),
                 ],
               ),
+              if (player.autoplayEnabled) ...[
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: const [
+                          Text(
+                            'CAMPUR LAGU GLOBAL',
+                            style: TextStyle(
+                              fontSize: 11,
+                              letterSpacing: 1.2,
+                              color: AppTheme.textSecondary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            'Sisipkan lagu chart global agar radio tidak monoton.',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppTheme.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Switch(
+                      value: player.mixChartEnabled,
+                      activeTrackColor: AppTheme.primaryGreen,
+                      onChanged: (val) => player.setMixChart(val),
+                    ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 16),
               const Divider(color: AppTheme.divider, height: 1),
               const SizedBox(height: 16),
@@ -272,7 +311,11 @@ class PlaybackOptionsSheet extends StatelessWidget {
                   trailing: isSelected
                       ? const Icon(Icons.check, color: AppTheme.primaryGreen, size: 18)
                       : null,
-                  onTap: () => player.setAudioQuality(q),
+                  onTap: () {
+                    player.setAudioQuality(q);
+                    // Kualitas unduhan offline mengikuti pilihan yang sama.
+                    context.read<LibraryProvider>().setAudioQuality(q);
+                  },
                 );
               }),
 

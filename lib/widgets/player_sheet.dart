@@ -9,7 +9,7 @@ import '../providers/library_provider.dart';
 import '../providers/player_provider.dart';
 import '../theme/app_theme.dart';
 import 'equalizer_sheet.dart';
-import 'export_mp3_dialog.dart';
+import 'export_audio_dialog.dart';
 import 'lyric_share_dialog.dart';
 import 'playback_options_sheet.dart';
 import 'queue_sheet.dart';
@@ -97,6 +97,9 @@ class _PlayerSheetState extends State<PlayerSheet> {
     final isLiked = library.isLiked(track.id);
     final isDownloaded = library.isDownloaded(track.id);
     final currentLyricIdx = player.currentLyricsIndex;
+
+    // Pesan error runtime ditampilkan di level utama (MainScreen) supaya
+    // tetap terlihat ketika panel pemutar penuh tidak sedang dibuka.
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_showLyricsView && currentLyricIdx >= 0) {
@@ -429,8 +432,8 @@ class _PlayerSheetState extends State<PlayerSheet> {
                         ),
                         IconButton(
                           icon: const Icon(Icons.drive_file_move_outlined, color: Colors.white, size: 20),
-                          tooltip: 'Simpan ke Folder HP (.mp3)',
-                          onPressed: () => ExportMp3Dialog.show(context, track),
+                          tooltip: 'Simpan ke Folder HP',
+                          onPressed: () => ExportAudioDialog.show(context, track),
                         ),
                       ],
                     )

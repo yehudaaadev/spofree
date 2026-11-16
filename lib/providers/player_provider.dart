@@ -2,25 +2,45 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../models/track_model.dart';
 import '../services/download_service.dart';
 import '../services/lyrics_service.dart';
 import '../services/music_service.dart';
+import '../services/youtube_stream_source.dart';
 
+/// Otak aplikasi pemutar.
+///
+/// Meny STATE playback (antrean, posisi, durasi, efek) dan dikonsumsi seluruh
+/// widget melalui `provider`. Semua operasi playback diserialisasi melalui
+/// [_playChain] sehingga permintaan yang tumpang tindih (mis. tap cepat pada
+/// beberapa lagu) tidak saling menimpa sumber audio.
 class PlayerProvider with ChangeNotifier {
   final AndroidEqualizer _equalizer = AndroidEqualizer();
   final AndroidLoudnessEnhancer _loudnessEnhancer = AndroidLoudnessEnhancer();
   late final AudioPlayer _player;
 
-  final MusicService _musicService = MusicService();
+  final MusicService _musicService = MusicService.instance;
   final LyricsService _lyricsService = LyricsService();
   final DownloadService _downloadService = DownloadService();
 
+  final math.Random _random = math.Random();
+
   static const String _recentKey = 'spotube_recently_played';
+
+  /// Batas jumlah lagu hasil autoplay yang ditambahkan ke antrean.
+  static const int _maxAutoplayTracks = 15;
+
+  /// Batas panjang antrean agar tidak membengkak tanpa batas.
+  static const int _maxQueueLength = 300;
+
+  /// Batas waktu menunggu sumber audio selesai dimuat.
+  static const Duration _loadTimeout = Duration(seconds: 30);
 
   TrackModel? _currentTrack;
   List<TrackModel> _queue = [];
@@ -48,6 +68,10 @@ class PlayerProvider with ChangeNotifier {
   String _audioQuality = 'Maksimal (320 kbps High Quality)';
   bool _autoplayEnabled = true;
   bool _isFetchingAutoplay = false;
+  bool _mixChartEnabled = true;
+
+  /// Id lagu yang sudah diputar sebagai bagian radio (anti pengulangan).
+  final Set<String> _radioHistory = {};
 
   // Crossfade
   int _crossfadeSeconds = 0;
@@ -64,6 +88,17 @@ class PlayerProvider with ChangeNotifier {
   double _bassBoostGain = 0.0;
   List<double> _customBandGains = [0.0, 0.0, 0.0, 0.0, 0.0];
 
+  // Serialisasi playback & penanganan error.
+  Future<void> _playChain = Future<void>.value();
+  int _playToken = 0;
+  String? _errorMessage;
+
+  /// Id lagu yang sudah dicoba ulang dengan stream MP4/AAC.
+  ///
+  /// Sebagian perangkat lama gagal mendekode Opus/WebM. Untuk lagu yang
+  /// bermasalah, pemutaran dicoba sekali lagi memakai kontainer MP4 (AAC).
+  String? _mp4FallbackTrackId;
+
   static const Map<String, List<double>> equalizerPresets = {
     'Flat': [0.0, 0.0, 0.0, 0.0, 0.0],
     'Bass Boost': [4.5, 3.0, 0.0, 0.0, -1.0],
@@ -77,6 +112,7 @@ class PlayerProvider with ChangeNotifier {
   StreamSubscription? _playerStateSub;
   StreamSubscription? _positionSub;
   StreamSubscription? _durationSub;
+  StreamSubscription? _errorSub;
 
   PlayerProvider() {
     _player = AudioPlayer(
@@ -110,6 +146,7 @@ class PlayerProvider with ChangeNotifier {
   List<TrackModel> get recentlyPlayed => _recentlyPlayed;
   String get audioQuality => _audioQuality;
   bool get autoplayEnabled => _autoplayEnabled;
+  bool get mixChartEnabled => _mixChartEnabled;
 
   int get crossfadeSeconds => _crossfadeSeconds;
   double get pitch => _pitch;
@@ -121,9 +158,73 @@ class PlayerProvider with ChangeNotifier {
   double get bassBoostGain => _bassBoostGain;
   List<double> get customBandGains => _customBandGains;
 
+  /// Pesan error terakhir yang perlu ditampilkan ke pengguna.
+  String? get errorMessage => _errorMessage;
+
+  /// Hapus pesan error setelah ditampilkan.
+  void clearError() {
+    if (_errorMessage == null) return;
+    _errorMessage = null;
+    notifyListeners();
+  }
+
+  void _setError(String message) {
+    _errorMessage = message;
+    notifyListeners();
+  }
+
+  /// Memutar ulang lagu yang sedang aktif.
+  ///
+  /// Dipakai oleh tombol "Coba lagi" ketika pemuatan stream gagal.
+  Future<void> retryCurrentTrack() async {
+    final track = _currentTrack;
+    if (track == null) return;
+    await playTrack(track, queue: _queue);
+  }
+
+  /// Kontainer yang dipakai untuk stream [track].
+  ///
+  /// `mp4` (AAC) dipilih sebagai cadangan ketika stream utama (Opus/WebM)
+  /// gagal dimuat atau tidak bisa didekode perangkat.
+  String? _preferredContainerFor(TrackModel track) {
+    return _mp4FallbackTrackId == track.id ? 'mp4' : null;
+  }
+
+  /// Mencoba memutar ulang [track] dengan stream MP4/AAC.
+  ///
+  /// Dipanggil sekali saja untuk setiap lagu, sehingga perangkat yang
+  /// memang tidak mendukung format tertentu tidak menyebabkan pengulangan
+  /// tanpa henti.
+  ///
+  /// Mengembalikan true bila pengulangan sudah dijadwalkan, sehingga pesan
+  /// error tidak perlu ditampilkan (percobaan berikutnya yang akan
+  /// memberi tahu hasilnya).
+  bool _scheduleMp4Fallback(TrackModel track) {
+    if (_mp4FallbackTrackId == track.id) return false;
+    _mp4FallbackTrackId = track.id;
+    unawaited(playTrack(track, queue: _queue));
+    return true;
+  }
+
+  /// Memantau apakah sumber audio berhasil dimuat dalam [_loadTimeout].
+  ///
+  /// Tanpa ini, sumber yang menggantung (mis. server tidak pernah selesai
+  /// mengirim data) membuat posisi playback diam di detik 0 tanpa penjelasan.
+  Future<void> _watchLoadTimeout(int token, TrackModel track) async {
+    await Future.delayed(_loadTimeout);
+    if (token != _playToken) return;
+    if (_isLoadingAudio && _position == Duration.zero) {
+      _isLoadingAudio = false;
+      _setError(
+        'Lagu "${track.title}" tidak dapat dimuat. Periksa koneksi lalu coba lagi.',
+      );
+    }
+  }
+
   void _initPlayer() {
     _playerStateSub = _player.playerStateStream.listen((state) {
       _isPlaying = state.playing;
+
       if (state.processingState == ProcessingState.completed) {
         if (_sleepAtSongEnd) {
           pause();
@@ -134,6 +235,21 @@ class PlayerProvider with ChangeNotifier {
         }
       }
       notifyListeners();
+    });
+
+    // just_audio melaporkan kegagalan pemutaran lewat errorStream.
+    _errorSub = _player.errorStream.listen((exception) {
+      debugPrint('[Player] error stream: $exception');
+      _isLoadingAudio = false;
+      final track = _currentTrack;
+      if (track != null && _scheduleMp4Fallback(track)) {
+        // Stream utama gagal: coba kontainer MP4/AAC lebih dulu sebelum
+        // menampilkan pesan error.
+        return;
+      }
+      _setError(
+        'Pemutaran terhenti: ${exception.message ?? 'kesalahan audio tak diketahui'}.',
+      );
     });
 
     _positionSub = _player.positionStream.listen((pos) {
@@ -162,29 +278,40 @@ class PlayerProvider with ChangeNotifier {
       try {
         await _equalizer.setEnabled(_equalizerEnabled);
         await _loudnessEnhancer.setEnabled(_bassBoostGain > 0);
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('[Player] equalizer init gagal: $e');
+      }
     }
   }
 
   Future<void> _triggerCrossfade() async {
+    if (_isCrossfading) return;
     _isCrossfading = true;
-    final stepDuration = Duration(milliseconds: (_crossfadeSeconds * 1000 ~/ 5).clamp(100, 1000));
-    for (double v = 1.0; v >= 0.1; v -= 0.2) {
-      await _player.setVolume(v.clamp(0.0, 1.0));
-      await Future.delayed(stepDuration);
+    try {
+      final stepDuration =
+          Duration(milliseconds: (_crossfadeSeconds * 1000 ~/ 5).clamp(100, 1000));
+      for (double v = 1.0; v >= 0.1; v -= 0.2) {
+        await _player.setVolume(v.clamp(0.0, 1.0));
+        await Future.delayed(stepDuration);
+      }
+      await next();
+      for (double v = 0.2; v <= 1.0; v += 0.2) {
+        await _player.setVolume(v.clamp(0.0, 1.0));
+        await Future.delayed(const Duration(milliseconds: 200));
+      }
+      await _player.setVolume(1.0);
+    } catch (e) {
+      debugPrint('[Player] crossfade gagal: $e');
+      await _player.setVolume(1.0);
+    } finally {
+      _isCrossfading = false;
     }
-    await next();
-    for (double v = 0.2; v <= 1.0; v += 0.2) {
-      await _player.setVolume(v.clamp(0.0, 1.0));
-      await Future.delayed(const Duration(milliseconds: 200));
-    }
-    await _player.setVolume(1.0);
-    _isCrossfading = false;
   }
 
   Future<void> _loadRecentlyPlayed() async {
     final prefs = await SharedPreferences.getInstance();
     _autoplayEnabled = prefs.getBool('spotube_autoplay') ?? true;
+    _mixChartEnabled = prefs.getBool('spotube_radio_mix_chart') ?? true;
     final raw = prefs.getStringList(_recentKey) ?? [];
     _recentlyPlayed = raw.map((item) {
       try {
@@ -207,11 +334,25 @@ class PlayerProvider with ChangeNotifier {
     await setAutoplay(!_autoplayEnabled);
   }
 
+  /// Aktifkan/Nonaktifkan pencampuran lagu chart global ke dalam Track Radio.
+  Future<void> setMixChart(bool value) async {
+    _mixChartEnabled = value;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('spotube_radio_mix_chart', value);
+  }
+
   Future<void> _recordRecentlyPlayed(TrackModel track) async {
     _recentlyPlayed.removeWhere((t) => t.id == track.id);
     _recentlyPlayed.insert(0, track);
     if (_recentlyPlayed.length > 25) {
       _recentlyPlayed = _recentlyPlayed.sublist(0, 25);
+    }
+
+    // Simpan id yang sudah diputar agar Track Radio tidak mengulang lagu.
+    _radioHistory.add(track.id);
+    if (_radioHistory.length > 200) {
+      _radioHistory.remove(_radioHistory.first);
     }
     notifyListeners();
 
@@ -220,7 +361,38 @@ class PlayerProvider with ChangeNotifier {
     await prefs.setStringList(_recentKey, raw);
   }
 
-  Future<void> playTrack(TrackModel track, {List<TrackModel>? queue}) async {
+  /// Memutar sebuah lagu.
+  ///
+  /// Permintaan diantrikan pada [_playChain] sehingga hanya satu pergantian
+  /// sumber audio yang berjalan pada satu waktu. Permintaan yang sudah
+  /// digantikan (mis. pengguna menekan lagu lain sebelum lagu sebelumnya selesai
+  /// dimuat) dibatalkan secara halus.
+  Future<void> playTrack(TrackModel track, {List<TrackModel>? queue}) {
+    final token = ++_playToken;
+    final completer = Completer<void>();
+
+    _playChain = _playChain.then((_) async {
+      try {
+        if (token != _playToken) return; // Permintaan sudah usang.
+        await _playTrackInternal(track, queue: queue, token: token);
+      } catch (e, st) {
+        debugPrint('[Player] playTrack gagal: $e\n$st');
+        if (token == _playToken) {
+          _setError('Gagal memutar "${track.title}".');
+        }
+      } finally {
+        if (!completer.isCompleted) completer.complete();
+      }
+    });
+
+    return completer.future;
+  }
+
+  Future<void> _playTrackInternal(
+    TrackModel track, {
+    List<TrackModel>? queue,
+    required int token,
+  }) async {
     if (queue != null && queue.isNotEmpty) {
       _queue = List.from(queue);
       _currentIndex = _queue.indexWhere((t) => t.id == track.id);
@@ -239,7 +411,16 @@ class PlayerProvider with ChangeNotifier {
     _isLoadingAudio = true;
     _position = Duration.zero;
     _duration = Duration(milliseconds: track.durationMs);
+
+    // Cadangan MP4/AAC hanya berlaku untuk lagu yang bermasalah saja.
+    if (_mp4FallbackTrackId != null && _mp4FallbackTrackId != track.id) {
+      _mp4FallbackTrackId = null;
+    }
     notifyListeners();
+
+    // Penjaga: kalau sumber audio menggantung, posisi playback diam di detik 0
+    // tanpa pesan. Penjaga ini mengubahnya menjadi error yang bisa ditindaklanjuti.
+    unawaited(_watchLoadTimeout(token, track));
 
     _recordRecentlyPlayed(track);
     _fetchLyrics(track);
@@ -254,34 +435,66 @@ class PlayerProvider with ChangeNotifier {
         duration: Duration(milliseconds: track.durationMs),
       );
 
-      final isLocal = track.localPath != null && await File(track.localPath!).exists();
+      final isLocal =
+          track.localPath != null && await File(track.localPath!).exists();
 
       if (isLocal) {
-        final audioSource = AudioSource.file(
-          track.localPath!,
-          tag: mediaItem,
+        await _player.setAudioSource(
+          AudioSource.file(track.localPath!, tag: mediaItem),
         );
-        await _player.setAudioSource(audioSource);
       } else {
-        final streamUrl = await _musicService.resolveAudioStream(track, quality: _audioQuality);
-        final audioSource = AudioSource.uri(
-          Uri.parse(streamUrl),
-          tag: mediaItem,
-        );
-        await _player.setAudioSource(audioSource);
+        await _setStreamSource(track, mediaItem);
       }
+
+      if (token != _playToken) return;
 
       await _player.setSpeed(_playbackSpeed);
       try {
         await _player.setPitch(_pitch);
-      } catch (_) {}
-      await _player.play();
-    } catch (e) {
-      debugPrint('Playback error: $e');
+      } catch (e) {
+        debugPrint('[Player] setPitch gagal: $e');
+      }
+
+      // Future `play()` baru selesai saat pemutaran berakhir, jadi future itu
+      // TIDAK boleh awaited di dalam [_playChain]. Kalau di-await, rantai
+      // terkunci sampai lagu selesai dan permintaan lagu berikutnya tidak
+      // pernah dijalankan.
+      unawaited(_player.play().catchError((Object e, StackTrace st) {
+        debugPrint('[Player] play gagal: $e');
+      }));
+    } catch (e, st) {
+      debugPrint('[Player] pemutaran gagal: $e\n$st');
+      if (token == _playToken) {
+        if (!_scheduleMp4Fallback(track)) {
+          _setError('Gagal memutar "${track.title}".');
+        }
+      }
     } finally {
-      _isLoadingAudio = false;
-      notifyListeners();
+      if (token == _playToken) {
+        _isLoadingAudio = false;
+        notifyListeners();
+      }
     }
+  }
+
+  /// Mengatur sumber audio streaming.
+  ///
+  /// CDN YouTube menolak permintaan HTTP tanpa header `Range` terbatasi, jadi
+  /// sumber audio diambil lewat [YouTubeStreamSource] yang menarik data per
+  /// potongan dan otomatis me-refresh URL bila link sudah kedaluwarsa.
+  Future<void> _setStreamSource(
+    TrackModel track,
+    MediaItem mediaItem,
+  ) async {
+    final source = YouTubeStreamSource(
+      track: track,
+      quality: _audioQuality,
+      musicService: _musicService,
+      preferredContainer: _preferredContainerFor(track),
+      tag: mediaItem,
+    );
+
+    await _player.setAudioSource(source);
   }
 
   Future<void> _fetchLyrics(TrackModel track) async {
@@ -325,9 +538,11 @@ class PlayerProvider with ChangeNotifier {
     if (_queue.isEmpty) return;
 
     if (_isShuffle && _queue.length > 1) {
-      final nextIdx = (DateTime.now().millisecond) % _queue.length;
-      await playTrack(_queue[nextIdx], queue: _queue);
-      return;
+      final nextIdx = _randomShuffleIndex();
+      if (nextIdx >= 0) {
+        await playTrack(_queue[nextIdx], queue: _queue);
+        return;
+      }
     }
 
     if (_currentIndex + 1 < _queue.length) {
@@ -337,24 +552,82 @@ class PlayerProvider with ChangeNotifier {
     } else if (_autoplayEnabled && _currentTrack != null && !_isFetchingAutoplay) {
       _isFetchingAutoplay = true;
       try {
-        final related = await _musicService.getRelatedTracks(_currentTrack!);
-        if (related.isNotEmpty) {
-          final existingIds = _queue.map((t) => t.id).toSet();
-          final newTracks = related.where((t) => !existingIds.contains(t.id)).toList();
-          if (newTracks.isNotEmpty) {
-            _queue.addAll(newTracks);
-            notifyListeners();
-            if (_currentIndex + 1 < _queue.length) {
-              await playTrack(_queue[_currentIndex + 1], queue: _queue);
-              return;
-            }
+        // Track Radio: daftar dari Deezer artist radio (genre/era based),
+        // bukan sekadar lagu dengan nama artis yang sama.
+        final radio = await _musicService.getRadioTracks(
+          _currentTrack!,
+          limit: _maxAutoplayTracks,
+        );
+
+        final existingIds = _queue.map((t) => t.id).toSet();
+        final batch = <TrackModel>[];
+
+        for (final candidate in radio) {
+          if (batch.length >= _maxAutoplayTracks) break;
+          if (existingIds.contains(candidate.id)) continue;
+          if (_radioHistory.contains(candidate.id)) continue;
+          if (batch.any((b) => b.id == candidate.id)) continue;
+          batch.add(candidate);
+        }
+
+        // Campur beberapa lagu chart global agar radio tidak monoton.
+        if (_mixChartEnabled && batch.length < _maxAutoplayTracks) {
+          final chart = await _musicService.getChartTracks();
+          for (final candidate in chart) {
+            if (batch.length >= _maxAutoplayTracks) break;
+            if (existingIds.contains(candidate.id)) continue;
+            if (_radioHistory.contains(candidate.id)) continue;
+            if (batch.any((b) => b.id == candidate.id)) continue;
+            batch.add(candidate);
+          }
+        }
+
+        if (batch.isNotEmpty) {
+          _queue.addAll(batch);
+          _trimQueue();
+          notifyListeners();
+          if (_currentIndex + 1 < _queue.length) {
+            await playTrack(_queue[_currentIndex + 1], queue: _queue);
+            return;
           }
         }
       } catch (e) {
-        debugPrint('Autoplay fetch error: $e');
+        debugPrint('[Player] Track Radio gagal: $e');
       } finally {
         _isFetchingAutoplay = false;
       }
+    }
+  }
+
+  /// Memilih indeks acak yang berbeda dari lagu sedang diputar.
+  ///
+  /// Gunakan generator angka acak sejati (bukan `DateTime.now().millisecond`)
+  /// agar lagu yang sama tidak terpilih berulang kali.
+  int _randomShuffleIndex() {
+    if (_queue.length < 2) return -1;
+    final candidates = <int>[];
+    for (int i = 0; i < _queue.length; i++) {
+      if (i != _currentIndex) candidates.add(i);
+    }
+    if (candidates.isEmpty) return -1;
+    return candidates[_random.nextInt(candidates.length)];
+  }
+
+  /// Membatasi panjang antrean dengan membuang lagu terlama (kecuali yang
+  /// sedang diputar).
+  void _trimQueue() {
+    if (_queue.length <= _maxQueueLength) return;
+    final excess = _queue.length - _maxQueueLength;
+    final removable = <int>[];
+    for (int i = 0; i < _queue.length; i++) {
+      if (i != _currentIndex) removable.add(i);
+      if (removable.length == excess) break;
+    }
+    for (final index in removable.reversed) {
+      _queue.removeAt(index);
+    }
+    if (_currentTrack != null) {
+      _currentIndex = _queue.indexWhere((t) => t.id == _currentTrack!.id);
     }
   }
 
@@ -394,11 +667,13 @@ class PlayerProvider with ChangeNotifier {
 
   void addToQueue(TrackModel track) {
     _queue.add(track);
+    _trimQueue();
     notifyListeners();
   }
 
   void addTracksToQueue(List<TrackModel> tracks) {
     _queue.addAll(tracks);
+    _trimQueue();
     notifyListeners();
   }
 
@@ -438,7 +713,7 @@ class PlayerProvider with ChangeNotifier {
 
   // Crossfade Control
   void setCrossfadeSeconds(int seconds) {
-    _crossfadeSeconds = seconds;
+    _crossfadeSeconds = seconds.clamp(0, 12);
     notifyListeners();
   }
 
@@ -456,7 +731,9 @@ class PlayerProvider with ChangeNotifier {
     _audioPreset = 'Custom';
     try {
       await _player.setPitch(_pitch);
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[Player] setPitch gagal: $e');
+    }
     notifyListeners();
   }
 
@@ -490,7 +767,9 @@ class PlayerProvider with ChangeNotifier {
     await _player.setSpeed(_playbackSpeed);
     try {
       await _player.setPitch(_pitch);
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[Player] setPitch gagal: $e');
+    }
     notifyListeners();
   }
 
@@ -500,7 +779,9 @@ class PlayerProvider with ChangeNotifier {
     if (!kIsWeb && Platform.isAndroid) {
       try {
         await _equalizer.setEnabled(enabled);
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('[Player] equalizer toggle gagal: $e');
+      }
     }
     notifyListeners();
   }
@@ -516,7 +797,9 @@ class PlayerProvider with ChangeNotifier {
           for (int i = 0; i < params.bands.length && i < gains.length; i++) {
             await params.bands[i].setGain(gains[i]);
           }
-        } catch (_) {}
+        } catch (e) {
+          debugPrint('[Player] equalizer preset gagal: $e');
+        }
       }
     }
     notifyListeners();
@@ -532,7 +815,9 @@ class PlayerProvider with ChangeNotifier {
           if (index < params.bands.length) {
             await params.bands[index].setGain(gain);
           }
-        } catch (_) {}
+        } catch (e) {
+          debugPrint('[Player] band gain gagal: $e');
+        }
       }
       notifyListeners();
     }
@@ -544,7 +829,9 @@ class PlayerProvider with ChangeNotifier {
       try {
         await _loudnessEnhancer.setEnabled(_bassBoostGain > 0);
         await _loudnessEnhancer.setTargetGain(_bassBoostGain * 1000.0);
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('[Player] bass boost gagal: $e');
+      }
     }
     notifyListeners();
   }
@@ -564,15 +851,20 @@ class PlayerProvider with ChangeNotifier {
   }
 
   Future<void> _executeSleepFadeOut() async {
-    for (double vol = 1.0; vol >= 0.0; vol -= 0.2) {
-      await _player.setVolume(vol.clamp(0.0, 1.0));
-      await Future.delayed(const Duration(milliseconds: 600));
+    try {
+      for (double vol = 1.0; vol >= 0.0; vol -= 0.2) {
+        await _player.setVolume(vol.clamp(0.0, 1.0));
+        await Future.delayed(const Duration(milliseconds: 600));
+      }
+      await pause();
+    } catch (e) {
+      debugPrint('[Player] sleep timer gagal: $e');
+    } finally {
+      await _player.setVolume(1.0);
+      _sleepTimer = null;
+      _sleepTimerEndTime = null;
+      notifyListeners();
     }
-    await pause();
-    await _player.setVolume(1.0);
-    _sleepTimer = null;
-    _sleepTimerEndTime = null;
-    notifyListeners();
   }
 
   void setAudioQuality(String quality) {
@@ -589,10 +881,16 @@ class PlayerProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final streamUrl = await _musicService.resolveAudioStream(_currentTrack!, quality: _audioQuality);
+      final track = _currentTrack!;
+      final streamUrl = await _musicService.resolveAudioStream(
+        track,
+        quality: _audioQuality,
+      );
       final downloadedTrack = await _downloadService.downloadTrack(
-        track: _currentTrack!,
+        track: track,
         audioStreamUrl: streamUrl,
+        musicService: _musicService,
+        quality: _audioQuality,
         onProgress: (p) {
           _downloadProgress = p;
           notifyListeners();
@@ -605,7 +903,8 @@ class PlayerProvider with ChangeNotifier {
       }
       return downloadedTrack;
     } catch (e) {
-      debugPrint('Download error: $e');
+      debugPrint('[Player] unduhan gagal: $e');
+      _setError('Unduhan gagal. Periksa koneksi internet lalu coba lagi.');
       return null;
     } finally {
       _isDownloading = false;
@@ -620,8 +919,8 @@ class PlayerProvider with ChangeNotifier {
     _playerStateSub?.cancel();
     _positionSub?.cancel();
     _durationSub?.cancel();
+    _errorSub?.cancel();
     _player.dispose();
-    _musicService.dispose();
     super.dispose();
   }
 }

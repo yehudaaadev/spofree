@@ -1,5 +1,7 @@
 import 'dart:convert';
+
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 
 class LyricsLine {
   final Duration timestamp;
@@ -8,11 +10,19 @@ class LyricsLine {
   const LyricsLine({required this.timestamp, required this.text});
 }
 
+/// Pengambil lirik dari LRCLIB.
+///
+/// Parser LRC dan lirik biasa diekstrak sebagai fungsi statis murni agar dapat
+/// diuji tanpa akses jaringan.
 class LyricsService {
-  final Dio _dio = Dio(BaseOptions(
-    connectTimeout: const Duration(seconds: 8),
-    receiveTimeout: const Duration(seconds: 8),
-  ));
+  final Dio _dio;
+
+  LyricsService({Dio? dio})
+      : _dio = dio ??
+            Dio(BaseOptions(
+              connectTimeout: const Duration(seconds: 8),
+              receiveTimeout: const Duration(seconds: 8),
+            ));
 
   Future<List<LyricsLine>> fetchLyrics({
     required String title,
@@ -31,23 +41,29 @@ class LyricsService {
       );
 
       if (response.statusCode == 200) {
-        final data = response.data is String ? json.decode(response.data) : response.data;
+        final data =
+            response.data is String ? json.decode(response.data) : response.data;
         final synced = data['syncedLyrics'] as String?;
         if (synced != null && synced.isNotEmpty) {
-          return _parseLrc(synced);
+          return parseLrc(synced);
         }
 
         final plain = data['plainLyrics'] as String?;
         if (plain != null && plain.isNotEmpty) {
-          return _parsePlain(plain);
+          return parsePlain(plain);
         }
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[LyricsService] pengambilan lirik gagal: $e');
+    }
 
     return [];
   }
 
-  List<LyricsLine> _parseLrc(String lrcContent) {
+  /// Mengurai lirik tersinkron (format LRC).
+  ///
+  /// Contoh baris: `[00:12.34] Teks lirik`.
+  static List<LyricsLine> parseLrc(String lrcContent) {
     final List<LyricsLine> lines = [];
     final regExp = RegExp(r'\[(\d{2}):(\d{2})\.(\d{2,3})\](.*)');
 
@@ -73,17 +89,16 @@ class LyricsService {
     return lines;
   }
 
-  List<LyricsLine> _parsePlain(String plainContent) {
+  /// Mengurai lirik tanpa timestamp; jarak antar baris diperkirakan 4 detik.
+  static List<LyricsLine> parsePlain(String plainContent) {
     final List<LyricsLine> lines = [];
-    final rawLines = plainContent.split('\n');
-    for (int i = 0; i < rawLines.length; i++) {
-      final text = rawLines[i].trim();
-      if (text.isNotEmpty) {
-        lines.add(LyricsLine(
-          timestamp: Duration(seconds: i * 4),
-          text: text,
-        ));
-      }
+    for (final rawLine in plainContent.split('\n')) {
+      final text = rawLine.trim();
+      if (text.isEmpty) continue;
+      lines.add(LyricsLine(
+        timestamp: Duration(seconds: lines.length * 4),
+        text: text,
+      ));
     }
     return lines;
   }

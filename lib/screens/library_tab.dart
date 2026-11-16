@@ -5,9 +5,8 @@ import '../models/track_model.dart';
 import '../providers/library_provider.dart';
 import '../providers/player_provider.dart';
 import '../services/local_audio_service.dart';
-import '../services/music_service.dart';
 import '../theme/app_theme.dart';
-import '../widgets/export_mp3_dialog.dart';
+import '../widgets/export_audio_dialog.dart';
 import '../widgets/import_playlist_dialog.dart';
 
 class LibraryTab extends StatefulWidget {
@@ -226,7 +225,7 @@ class _LibraryTabState extends State<LibraryTab> {
                       onPressed: library.isBulkDownloading
                           ? null
                           : () {
-                              library.bulkDownloadTracks(tracks, MusicService());
+                              library.bulkDownloadTracks(tracks);
                             },
                     ),
                   const SizedBox(width: 8),
@@ -312,8 +311,8 @@ class _LibraryTabState extends State<LibraryTab> {
                         children: [
                           IconButton(
                             icon: const Icon(Icons.drive_file_move_outlined, color: AppTheme.primaryGreen, size: 22),
-                            tooltip: 'Pilih Folder & Simpan File .MP3',
-                            onPressed: () => ExportMp3Dialog.show(context, track),
+                            tooltip: 'Salin ke Folder HP',
+                            onPressed: () => ExportAudioDialog.show(context, track),
                           ),
                           IconButton(
                             icon: const Icon(Icons.delete_outline, color: AppTheme.textSecondary, size: 20),
@@ -398,8 +397,27 @@ class _LibraryTabState extends State<LibraryTab> {
   Future<void> _scanLocalFiles() async {
     setState(() => _isLoadingLocal = true);
     try {
-      _localFiles = await LocalAudioService.scanLocalAudioFiles();
-    } catch (_) {
+      // Android 11+ memerlukan izin akses penyimpanan penuh untuk memindai
+      // folder publik perangkat.
+      final granted = await LocalAudioService.requestStoragePermission();
+      if (!granted) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              backgroundColor: AppTheme.surface,
+              duration: Duration(seconds: 5),
+              content: Text(
+                'Izin akses penyimpanan diperlukan untuk memindai file lokal.',
+                style: TextStyle(color: Colors.white, fontSize: 13),
+              ),
+            ),
+          );
+        }
+        _localFiles = [];
+      } else {
+        _localFiles = await LocalAudioService.scanLocalAudioFiles();
+      }
+    } catch (e) {
       _localFiles = [];
     }
     if (mounted) setState(() => _isLoadingLocal = false);

@@ -1,13 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../models/track_model.dart';
 import '../providers/library_provider.dart';
+import '../services/audio_format.dart';
 import '../theme/app_theme.dart';
 
-class ExportMp3Dialog extends StatefulWidget {
+/// Dialog ekspor berkas audio ke folder penyimpanan publik di perangkat.
+///
+/// Nama berkas mengikuti format asli lagu (MP3/M4A/WebM/Opus/FLAC/WAV).
+/// Tag ID3 beserta cover art hanya disisipkan untuk berkas MP3 karena
+/// kontainer lain memerlukan penulisan metadata spesifik per format.
+class ExportAudioDialog extends StatefulWidget {
   final TrackModel track;
 
-  const ExportMp3Dialog({super.key, required this.track});
+  const ExportAudioDialog({super.key, required this.track});
 
   static void show(BuildContext context, TrackModel track) {
     showModalBottomSheet(
@@ -16,16 +23,16 @@ class ExportMp3Dialog extends StatefulWidget {
       backgroundColor: Colors.transparent,
       builder: (ctx) => Padding(
         padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-        child: ExportMp3Dialog(track: track),
+        child: ExportAudioDialog(track: track),
       ),
     );
   }
 
   @override
-  State<ExportMp3Dialog> createState() => _ExportMp3DialogState();
+  State<ExportAudioDialog> createState() => _ExportAudioDialogState();
 }
 
-class _ExportMp3DialogState extends State<ExportMp3Dialog> {
+class _ExportAudioDialogState extends State<ExportAudioDialog> {
   final TextEditingController _customFolderController = TextEditingController();
   String _selectedFolder = 'Download';
   bool _isSaving = false;
@@ -51,37 +58,58 @@ class _ExportMp3DialogState extends State<ExportMp3Dialog> {
 
     setState(() => _isSaving = true);
 
-    final savedPath = await library.exportTrackToMp3(widget.track, folderName: targetFolder);
+    final result = await library.exportTrack(widget.track, folderName: targetFolder);
 
-    if (mounted) {
-      setState(() => _isSaving = false);
-      Navigator.pop(context);
+    if (!mounted) return;
+    setState(() => _isSaving = false);
+    Navigator.pop(context);
 
-      if (savedPath != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: AppTheme.surface,
-            duration: const Duration(seconds: 4),
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle, color: AppTheme.primaryGreen, size: 20),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'MP3 tersimpan di: $savedPath',
-                    style: const TextStyle(color: Colors.white, fontSize: 13),
-                  ),
+    final messenger = ScaffoldMessenger.of(context);
+    if (result.success) {
+      messenger.showSnackBar(
+        SnackBar(
+          backgroundColor: AppTheme.surface,
+          duration: const Duration(seconds: 5),
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle, color: AppTheme.primaryGreen, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  '${result.format.displayName} tersimpan di: ${result.path}',
+                  style: const TextStyle(color: Colors.white, fontSize: 13),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        );
-      }
+        ),
+      );
+    } else {
+      messenger.showSnackBar(
+        SnackBar(
+          backgroundColor: AppTheme.surface,
+          duration: const Duration(seconds: 6),
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline, color: Colors.redAccent, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  result.error ?? 'Gagal menyimpan berkas.',
+                  style: const TextStyle(color: Colors.white, fontSize: 13),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final format = AudioFormat.fromMime(widget.track.mimeType);
+
     return Container(
       decoration: const BoxDecoration(
         color: AppTheme.surface,
@@ -94,49 +122,54 @@ class _ExportMp3DialogState extends State<ExportMp3Dialog> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'Simpan Lagu sebagai .MP3',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                  Expanded(
+                    child: Text(
+                      'Simpan Lagu ke Folder HP',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white, size: 20),
+                    icon: Icon(Icons.close, color: Colors.white, size: 20),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],
               ),
               const SizedBox(height: 6),
               Text(
-                '${widget.track.artist} - ${widget.track.title}.mp3',
-                style: const TextStyle(color: AppTheme.primaryGreen, fontSize: 13, fontWeight: FontWeight.bold),
+                '${widget.track.artist} - ${widget.track.title}',
+                style: const TextStyle(
+                  color: AppTheme.primaryGreen,
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-              const SizedBox(height: 6),
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryGreen.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(4),
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppTheme.card,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.info_outline, color: AppTheme.primaryGreen, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Berkas disimpan dengan format aslinya (${format.displayName}). '
+                        'Tag ID3 dan cover art hanya ditanam otomatis untuk berkas MP3.',
+                        style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary, height: 1.4),
+                      ),
                     ),
-                    child: const Text(
-                      'FORMAT .MP3',
-                      style: TextStyle(color: AppTheme.primaryGreen, fontSize: 10, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'ID3v2 Tag + Cover Art HD Tanam',
-                    style: TextStyle(color: AppTheme.textSecondary, fontSize: 11),
-                  ),
-                ],
+                  ],
+                ),
               ),
-              const Divider(color: AppTheme.divider, height: 20),
+              const Divider(color: AppTheme.divider, height: 24),
 
               const Text(
                 'PILIH FOLDER PENYIMPANAN DI HP:',
@@ -229,7 +262,7 @@ class _ExportMp3DialogState extends State<ExportMp3Dialog> {
                         )
                       : const Icon(Icons.save_alt),
                   label: Text(
-                    _isSaving ? 'Menyimpan...' : 'Simpan File .MP3 Sekarang',
+                    _isSaving ? 'Menyimpan...' : 'Simpan ke Folder HP',
                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                   ),
                   onPressed: _isSaving ? null : _export,

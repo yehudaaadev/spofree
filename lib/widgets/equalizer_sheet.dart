@@ -1,13 +1,24 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/player_provider.dart';
+import '../theme/app_theme.dart';
 
 class EqualizerSheet extends StatelessWidget {
   const EqualizerSheet({super.key});
 
+  /// Equalizer native hanya tersedia pada Android (ExoPlayer).
+  static bool get _isSupported {
+    if (kIsWeb) return false;
+    return Platform.isAndroid;
+  }
+
   @override
   Widget build(BuildContext context) {
     final player = context.watch<PlayerProvider>();
+    final supported = _isSupported;
 
     return Container(
       decoration: const BoxDecoration(
@@ -46,11 +57,38 @@ class EqualizerSheet extends StatelessWidget {
                   value: player.equalizerEnabled,
                   activeThumbColor: const Color(0xFF1DB954),
                   activeTrackColor: const Color(0xFF1DB954).withValues(alpha: 0.4),
-                  onChanged: (val) => player.setEqualizerEnabled(val),
+                  onChanged: supported ? (val) => player.setEqualizerEnabled(val) : null,
                 ),
               ],
             ),
             const SizedBox(height: 16),
+            if (!supported)
+              Container(
+                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: AppTheme.card,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.orangeAccent.withValues(alpha: 0.4)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.orangeAccent, size: 18),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Equalizer native hanya tersedia di Android. '
+                        'Pitch shift dan kecepatan tetap dapat digunakan di semua platform.',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppTheme.textSecondary,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             const Text(
               'Preset Suara',
               style: TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w600),
@@ -71,7 +109,7 @@ class EqualizerSheet extends StatelessWidget {
                     fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                     fontSize: 12,
                   ),
-                  onSelected: player.equalizerEnabled
+                  onSelected: (player.equalizerEnabled && supported)
                       ? (_) => player.setEqualizerPreset(preset)
                       : null,
                 );
@@ -97,7 +135,7 @@ class EqualizerSheet extends StatelessWidget {
               max: 1.0,
               activeColor: const Color(0xFF1DB954),
               inactiveColor: Colors.white12,
-              onChanged: player.equalizerEnabled
+              onChanged: (player.equalizerEnabled && supported)
                   ? (val) => player.setBassBoost(val)
                   : null,
             ),

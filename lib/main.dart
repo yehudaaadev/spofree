@@ -1,14 +1,11 @@
-import 'package:firebase_core/firebase_core.dart';
+import 'package:audio_session/audio_session.dart';
 import 'package:flutter/material.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'package:provider/provider.dart';
 
-import 'providers/auth_provider.dart';
 import 'providers/library_provider.dart';
 import 'providers/player_provider.dart';
-import 'screens/auth_screen.dart';
 import 'screens/main_screen.dart';
-import 'services/firebase_options.dart';
 import 'theme/app_theme.dart';
 
 Future<void> main() async {
@@ -20,9 +17,14 @@ Future<void> main() async {
     androidNotificationOngoing: true,
   );
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  // Sesi audio "musik": pemutar mengambil fokus audio, meredam suara aplikasi
+  // lain (mis. navigasi), dan berhenti saat headphone dicabut.
+  try {
+    final session = await AudioSession.instance;
+    await session.configure(const AudioSessionConfiguration.music());
+  } catch (e) {
+    debugPrint('[main] konfigurasi audio session gagal: $e');
+  }
 
   runApp(const SpotifyCloneApp());
 }
@@ -34,7 +36,6 @@ class SpotifyCloneApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => LibraryProvider()),
         ChangeNotifierProvider(create: (_) => PlayerProvider()),
       ],
@@ -42,14 +43,7 @@ class SpotifyCloneApp extends StatelessWidget {
         title: 'Wave Music',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.darkTheme,
-        home: Consumer<AuthProvider>(
-          builder: (context, auth, _) {
-            if (auth.isAuthenticated) {
-              return const MainScreen();
-            }
-            return const AuthScreen();
-          },
-        ),
+        home: const MainScreen(),
       ),
     );
   }

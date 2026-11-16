@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../providers/auth_provider.dart';
+
 import '../providers/library_provider.dart';
+import '../providers/player_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/mini_player.dart';
 import 'home_tab.dart';
@@ -18,6 +19,9 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
 
+  /// Error yang sudah pernah ditampilkan, agar tidak muncul dua kali.
+  String? _shownError;
+
   final List<Widget> _tabs = const [
     HomeTab(),
     SearchTab(),
@@ -26,10 +30,47 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final auth = context.watch<AuthProvider>();
-    final library = context.read<LibraryProvider>();
+    // Koleksi dimuat ulang saat tab Koleksi dibuka agar data lokal yang
+    // baru saja berubah (disukai/playlist) selalu tampil akurat.
+    context.read<LibraryProvider>();
 
-    library.updateUser(auth.user?.uid);
+    final player = context.watch<PlayerProvider>();
+    final error = player.errorMessage;
+
+    // Error playback harus terlihat dari mana pun lagu diputar, bukan hanya
+    // saat panel pemutar penuh sedang dibuka.
+    if (error != null && error != _shownError) {
+      _shownError = error;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: AppTheme.surface,
+            duration: const Duration(seconds: 6),
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.redAccent, size: 20),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    error,
+                    style: const TextStyle(color: Colors.white, fontSize: 13),
+                  ),
+                ),
+              ],
+            ),
+            action: SnackBarAction(
+              label: 'Coba Lagi',
+              textColor: AppTheme.primaryGreen,
+              onPressed: () => player.retryCurrentTrack(),
+            ),
+          ),
+        );
+        player.clearError();
+      });
+    } else if (error == null) {
+      _shownError = null;
+    }
 
     return Scaffold(
       body: Stack(
@@ -50,6 +91,9 @@ class _MainScreenState extends State<MainScreen> {
         currentIndex: _currentIndex,
         onTap: (index) {
           setState(() => _currentIndex = index);
+          if (index == 2) {
+            context.read<LibraryProvider>().refreshLibrary();
+          }
         },
         backgroundColor: AppTheme.background,
         selectedItemColor: Colors.white,
