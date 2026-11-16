@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/library_provider.dart';
@@ -90,6 +91,9 @@ class _MainScreenState extends State<MainScreen> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (index) {
+          if (_currentIndex != index) {
+            HapticFeedback.selectionClick();
+          }
           setState(() => _currentIndex = index);
           if (index == 2) {
             context.read<LibraryProvider>().refreshLibrary();

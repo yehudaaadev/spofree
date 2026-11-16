@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../models/track_model.dart';
 import '../providers/library_provider.dart';
@@ -142,19 +143,28 @@ class _LibraryTabState extends State<LibraryTab> {
   Widget _buildChip(String label, int index) {
     final isSelected = _selectedFilter == index;
     return GestureDetector(
-      onTap: () => setState(() => _selectedFilter = index),
-      child: Container(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        setState(() => _selectedFilter = index);
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutCubic,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
           color: isSelected ? AppTheme.primaryGreen : AppTheme.surface,
           borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? AppTheme.primaryGreen : Colors.white12,
+            width: 1,
+          ),
         ),
         child: Text(
           label,
           style: TextStyle(
             fontSize: 13,
-            fontWeight: FontWeight.bold,
-            color: isSelected ? Colors.black : AppTheme.textPrimary,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+            color: isSelected ? Colors.black : Colors.white70,
           ),
         ),
       ),

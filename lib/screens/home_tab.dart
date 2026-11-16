@@ -444,45 +444,83 @@ class _HomeTabState extends State<HomeTab> {
   }
 
   Widget _buildSkeletonItem() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+    return const Padding(
+      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       child: Row(
         children: [
-          Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              color: AppTheme.card.withValues(alpha: 0.6),
-              borderRadius: BorderRadius.circular(6),
-            ),
-          ),
-          const SizedBox(width: 14),
+          _ShimmerBox(width: 50, height: 50, borderRadius: 8),
+          SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: double.infinity,
-                  height: 14,
-                  decoration: BoxDecoration(
-                    color: AppTheme.card.withValues(alpha: 0.6),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Container(
-                  width: 120,
-                  height: 10,
-                  decoration: BoxDecoration(
-                    color: AppTheme.card.withValues(alpha: 0.4),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
+                _ShimmerBox(width: double.infinity, height: 14, borderRadius: 4),
+                SizedBox(height: 8),
+                _ShimmerBox(width: 120, height: 10, borderRadius: 4),
               ],
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _ShimmerBox extends StatefulWidget {
+  final double width;
+  final double height;
+  final double borderRadius;
+
+  const _ShimmerBox({
+    required this.width,
+    required this.height,
+    this.borderRadius = 6,
+  });
+
+  @override
+  State<_ShimmerBox> createState() => _ShimmerBoxState();
+}
+
+class _ShimmerBoxState extends State<_ShimmerBox> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return Container(
+          width: widget.width,
+          height: widget.height,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(widget.borderRadius),
+            gradient: LinearGradient(
+              begin: Alignment(-1.5 + (_controller.value * 3.0), 0),
+              end: Alignment(-0.5 + (_controller.value * 3.0), 0),
+              colors: [
+                AppTheme.card.withValues(alpha: 0.6),
+                Colors.white.withValues(alpha: 0.12),
+                AppTheme.card.withValues(alpha: 0.6),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

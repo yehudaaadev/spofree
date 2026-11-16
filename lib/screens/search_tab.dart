@@ -357,11 +357,14 @@ class _SearchTabState extends State<SearchTab> {
           itemBuilder: (context, index) {
             final genre = _genres[index];
             return GestureDetector(
-              onTap: () => _applySearchQuery(genre.query),
+              onTap: () {
+                HapticFeedback.selectionClick();
+                _applySearchQuery(genre.query);
+              },
               child: Container(
                 clipBehavior: Clip.antiAlias,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(12),
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
@@ -369,34 +372,61 @@ class _SearchTabState extends State<SearchTab> {
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.35),
-                      blurRadius: 8,
+                      color: genre.colors.first.withValues(alpha: 0.35),
+                      blurRadius: 10,
                       offset: const Offset(0, 4),
+                    ),
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.4),
+                      blurRadius: 12,
+                      offset: const Offset(0, 6),
                     ),
                   ],
                 ),
                 child: Stack(
                   children: [
                     Positioned(
-                      bottom: -8,
-                      right: -8,
+                      bottom: -10,
+                      right: -12,
                       child: Transform.rotate(
-                        angle: 0.35,
-                        child: Icon(
-                          genre.icon,
-                          size: 64,
-                          color: Colors.white.withValues(alpha: 0.25),
+                        angle: 0.40,
+                        child: Container(
+                          width: 68,
+                          height: 68,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(8),
+                            color: Colors.black.withValues(alpha: 0.32),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.15),
+                              width: 0.8,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.4),
+                                blurRadius: 10,
+                                offset: const Offset(-3, 3),
+                              ),
+                            ],
+                          ),
+                          child: Center(
+                            child: Icon(
+                              genre.icon,
+                              size: 34,
+                              color: Colors.white.withValues(alpha: 0.9),
+                            ),
+                          ),
                         ),
                       ),
                     ),
                     Padding(
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.all(14),
                       child: Text(
                         genre.title,
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.3,
                         ),
                       ),
                     ),

@@ -9,10 +9,18 @@ import '../theme/app_theme.dart';
 import 'mini_visualizer.dart';
 import 'player_sheet.dart';
 
-class MiniPlayer extends StatelessWidget {
+class MiniPlayer extends StatefulWidget {
   const MiniPlayer({super.key});
 
+  @override
+  State<MiniPlayer> createState() => _MiniPlayerState();
+}
+
+class _MiniPlayerState extends State<MiniPlayer> {
+  bool _isPressed = false;
+
   void _openFullPlayer(BuildContext context) {
+    HapticFeedback.lightImpact();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -46,7 +54,12 @@ class MiniPlayer extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       child: GestureDetector(
-        onTap: () => _openFullPlayer(context),
+        onTapDown: (_) => setState(() => _isPressed = true),
+        onTapUp: (_) {
+          setState(() => _isPressed = false);
+          _openFullPlayer(context);
+        },
+        onTapCancel: () => setState(() => _isPressed = false),
         onHorizontalDragEnd: (details) {
           final velocity = details.primaryVelocity ?? 0.0;
           if (velocity < -250) {
@@ -57,25 +70,32 @@ class MiniPlayer extends StatelessWidget {
             player.previous();
           }
         },
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-            child: Container(
-              height: 62,
-              decoration: BoxDecoration(
-                color: AppTheme.card.withValues(alpha: 0.88),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.12), width: 0.8),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.35),
-                    blurRadius: 16,
-                    offset: const Offset(0, 6),
+        child: AnimatedScale(
+          scale: _isPressed ? 0.97 : 1.0,
+          duration: const Duration(milliseconds: 140),
+          curve: Curves.easeOutBack,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+              child: Container(
+                height: 64,
+                decoration: BoxDecoration(
+                  color: AppTheme.card.withValues(alpha: 0.90),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.14),
+                    width: 0.9,
                   ),
-                ],
-              ),
-              child: Column(
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.45),
+                      blurRadius: 18,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Column(
                 children: [
                   Expanded(
                     child: Padding(
@@ -216,6 +236,7 @@ class MiniPlayer extends StatelessWidget {
           ),
         ),
       ),
-    );
+    ),
+  );
   }
 }
