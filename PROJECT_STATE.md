@@ -36,6 +36,7 @@
 27. **Universal Track Options Action Sheet**: Integrated `more_vert` (three dots) quick action button on both "Hasil Teratas" and "Lagu Lainnya" search results opening a Rose & Obsidian modal sheet (`TrackOptionsSheet`). Provides shortcuts for Like/Unlike, instant single-track offline download with status feedback (`downloadSingleTrack`), playlist management ("Tambah ke Playlist" with on-the-fly new playlist creation), Play Next, and Add to Queue.
 28. **Interactive Swipe-to-Skip Gestures on Mini Player**: Implemented spring-based horizontal drag gestures with responsive cues and Rose Pink indicators in `MiniPlayer` to skip next/previous songs without opening the full player sheet.
 29. **Interactive Tap-to-Seek Synced Lyrics**: Re-architected `_buildLyricsView` in `PlayerSheet` with per-line timestamp badges, instant tap-to-seek with playback auto-resume, subtle hint header, and complete Rose & Obsidian styling.
+30. **Flexible Sorting & Filtering in Library Tab**: Implemented dynamic collection sorting modal and engine in `LibraryTab` for Liked and Offline tracks with real-time sorting by *Terbaru Ditambahkan*, *Judul Lagu (A - Z)*, *Nama Artis (A - Z)*, and *Durasi Lagu*.
 
 ## Verification Status
 - Version: 1.1.0 (Build 6)

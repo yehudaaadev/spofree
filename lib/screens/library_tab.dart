@@ -25,6 +25,115 @@ class _LibraryTabState extends State<LibraryTab> {
   List<TrackModel> _localFiles = [];
   bool _isLoadingLocal = false;
 
+  // 0: Terbaru (Default), 1: Judul (A-Z), 2: Artis (A-Z), 3: Durasi (Terpanjang)
+  int _sortMode = 0;
+
+  String get _sortModeLabel {
+    switch (_sortMode) {
+      case 1:
+        return 'Judul (A-Z)';
+      case 2:
+        return 'Artis (A-Z)';
+      case 3:
+        return 'Durasi';
+      default:
+        return 'Terbaru';
+    }
+  }
+
+  List<TrackModel> _applySort(List<TrackModel> original) {
+    final list = List<TrackModel>.from(original);
+    switch (_sortMode) {
+      case 1:
+        list.sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+        break;
+      case 2:
+        list.sort((a, b) => a.artist.toLowerCase().compareTo(b.artist.toLowerCase()));
+        break;
+      case 3:
+        list.sort((a, b) => b.durationMs.compareTo(a.durationMs));
+        break;
+      default:
+        break;
+    }
+    return list;
+  }
+
+  void _showSortBottomSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) {
+        return Material(
+          color: AppTheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          clipBehavior: Clip.antiAlias,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.white24,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Urutkan Berdasarkan',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _buildSortOption(sheetCtx, 'Terbaru Ditambahkan', Icons.access_time_rounded, 0),
+                _buildSortOption(sheetCtx, 'Judul Lagu (A - Z)', Icons.sort_by_alpha_rounded, 1),
+                _buildSortOption(sheetCtx, 'Nama Artis (A - Z)', Icons.person_outline_rounded, 2),
+                _buildSortOption(sheetCtx, 'Durasi Lagu (Terpanjang)', Icons.timelapse_rounded, 3),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSortOption(BuildContext sheetCtx, String label, IconData icon, int mode) {
+    final isSelected = _sortMode == mode;
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(
+        icon,
+        color: isSelected ? AppTheme.primaryRose : AppTheme.textSecondary,
+        size: 20,
+      ),
+      title: Text(
+        label,
+        style: TextStyle(
+          color: isSelected ? AppTheme.primaryRoseLight : Colors.white,
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          fontSize: 14,
+        ),
+      ),
+      trailing: isSelected
+          ? const Icon(Icons.check_rounded, color: AppTheme.primaryRose, size: 20)
+          : null,
+      onTap: () {
+        HapticFeedback.selectionClick();
+        setState(() => _sortMode = mode);
+        Navigator.pop(sheetCtx);
+      },
+    );
+  }
+
   void _showCreatePlaylistDialog(BuildContext context) {
     final controller = TextEditingController();
     showDialog(
@@ -161,10 +270,10 @@ class _LibraryTabState extends State<LibraryTab> {
         curve: Curves.easeOutCubic,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? AppTheme.primaryGreen : AppTheme.surface,
+          color: isSelected ? AppTheme.primaryRose : AppTheme.surface,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isSelected ? AppTheme.primaryGreen : Colors.white12,
+            color: isSelected ? AppTheme.primaryRose : Colors.white12,
             width: 1,
           ),
         ),
@@ -173,7 +282,7 @@ class _LibraryTabState extends State<LibraryTab> {
           style: TextStyle(
             fontSize: 13,
             fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-            color: isSelected ? Colors.black : Colors.white70,
+            color: isSelected ? Colors.white : Colors.white70,
           ),
         ),
       ),
@@ -208,6 +317,8 @@ class _LibraryTabState extends State<LibraryTab> {
       );
     }
 
+    final displayTracks = _applySort(tracks);
+
     return Column(
       children: [
         // Action Controls & Bulk Download
@@ -216,13 +327,45 @@ class _LibraryTabState extends State<LibraryTab> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                '${tracks.length} lagu',
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: AppTheme.textSecondary,
-                  fontWeight: FontWeight.w600,
-                ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '${tracks.length} lagu',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: AppTheme.textSecondary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  GestureDetector(
+                    onTap: () => _showSortBottomSheet(context),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppTheme.card,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppTheme.divider, width: 0.8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.sort_rounded, size: 14, color: AppTheme.primaryRose),
+                          const SizedBox(width: 4),
+                          Text(
+                            _sortModeLabel,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppTheme.primaryRoseLight,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
               Row(
                 children: [
@@ -232,34 +375,34 @@ class _LibraryTabState extends State<LibraryTab> {
                           ? const SizedBox(
                               width: 14,
                               height: 14,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primaryGreen),
+                              child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primaryRose),
                             )
-                          : const Icon(Icons.download_for_offline_outlined, size: 18, color: AppTheme.primaryGreen),
+                          : const Icon(Icons.download_for_offline_outlined, size: 18, color: AppTheme.primaryRose),
                       label: Text(
                         library.isBulkDownloading
                             ? '${library.bulkCurrentIndex}/${library.bulkTotalCount}'
                             : 'Download Semua',
-                        style: const TextStyle(color: AppTheme.primaryGreen, fontSize: 13, fontWeight: FontWeight.bold),
+                        style: const TextStyle(color: AppTheme.primaryRose, fontSize: 13, fontWeight: FontWeight.bold),
                       ),
                       onPressed: library.isBulkDownloading
                           ? null
                           : () {
-                              library.bulkDownloadTracks(tracks);
+                              library.bulkDownloadTracks(displayTracks);
                             },
                     ),
                   const SizedBox(width: 8),
                   ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryGreen,
-                      foregroundColor: Colors.black,
+                      backgroundColor: AppTheme.primaryRose,
+                      foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                     ),
                     icon: const Icon(Icons.play_arrow, size: 18),
                     label: const Text('Putar Semua', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                     onPressed: () {
-                      if (tracks.isNotEmpty) {
-                        player.playTrack(tracks.first, queue: tracks);
+                      if (displayTracks.isNotEmpty) {
+                        player.playTrack(displayTracks.first, queue: displayTracks);
                       }
                     },
                   ),
@@ -275,16 +418,16 @@ class _LibraryTabState extends State<LibraryTab> {
             child: LinearProgressIndicator(
               value: library.bulkDownloadProgress,
               backgroundColor: AppTheme.card,
-              valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primaryGreen),
+              valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primaryRose),
             ),
           ),
 
         Expanded(
           child: ListView.builder(
             padding: const EdgeInsets.only(bottom: 80),
-            itemCount: tracks.length,
+            itemCount: displayTracks.length,
             itemBuilder: (context, index) {
-              final track = tracks[index];
+              final track = displayTracks[index];
               return ListTile(
                 contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
                 leading: ClipRRect(
@@ -329,7 +472,7 @@ class _LibraryTabState extends State<LibraryTab> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           IconButton(
-                            icon: const Icon(Icons.drive_file_move_outlined, color: AppTheme.primaryGreen, size: 22),
+                            icon: const Icon(Icons.drive_file_move_outlined, color: AppTheme.primaryRose, size: 22),
                             tooltip: 'Salin ke Folder HP',
                             onPressed: () => ExportAudioDialog.show(context, track),
                           ),
@@ -340,13 +483,13 @@ class _LibraryTabState extends State<LibraryTab> {
                         ],
                       )
                     : IconButton(
-                        icon: const Icon(Icons.favorite, color: AppTheme.primaryGreen, size: 22),
+                        icon: const Icon(Icons.favorite, color: AppTheme.primaryRose, size: 22),
                         onPressed: () => library.toggleLike(track),
                       ),
-                onTap: () => player.playTrack(track, queue: tracks),
+                onTap: () => player.playTrack(track, queue: displayTracks),
                 onLongPress: () {
                   HapticFeedback.selectionClick();
-                  TrackOptionsSheet.show(context, track, contextQueue: tracks);
+                  TrackOptionsSheet.show(context, track, contextQueue: displayTracks);
                 },
               );
             },
