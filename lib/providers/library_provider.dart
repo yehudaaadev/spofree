@@ -198,6 +198,9 @@ class LibraryProvider with ChangeNotifier {
     return _downloadedTracks.any((t) => t.id == trackId);
   }
 
+  final Set<String> _downloadingTrackIds = {};
+  bool isDownloadingTrack(String trackId) => _downloadingTrackIds.contains(trackId);
+
   TrackModel? getDownloadedTrack(String trackId) {
     try {
       return _downloadedTracks.firstWhere((t) => t.id == trackId);
@@ -252,6 +255,36 @@ class LibraryProvider with ChangeNotifier {
     _isBulkDownloading = false;
     _bulkDownloadProgress = 0.0;
     await refreshDownloaded();
+  }
+
+  /// Unduh 1 lagu langsung ke penyimpanan offline lokal.
+  Future<bool> downloadSingleTrack(TrackModel track) async {
+    if (isDownloaded(track.id)) return true;
+    if (_downloadingTrackIds.contains(track.id)) return false;
+
+    _downloadingTrackIds.add(track.id);
+    notifyListeners();
+
+    try {
+      final streamUrl = await _musicService.resolveAudioStream(
+        track,
+        quality: _audioQuality,
+      );
+      await _downloadService.downloadTrack(
+        track: track,
+        audioStreamUrl: streamUrl,
+        musicService: _musicService,
+        quality: _audioQuality,
+      );
+      await refreshDownloaded();
+      return true;
+    } catch (e) {
+      debugPrint('[Library] unduhan single track gagal untuk "${track.title}": $e');
+      return false;
+    } finally {
+      _downloadingTrackIds.remove(track.id);
+      notifyListeners();
+    }
   }
 
   /// Ekspor berkas audio ke folder yang dapat diakses pengguna.

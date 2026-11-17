@@ -33,9 +33,10 @@
 24. **Duo A (Rose & Obsidian) Visual Theme**: Replaced Spotify green with Rose Pink (`#F43F5E`) and deep Obsidian charcoal surfaces (`#0E0E11` and `#16161B`) across `AppTheme`, custom painter waveform logo, equalizer controls, and modal dialogs. Maintained `primaryGreen` alias in `AppTheme` for zero-friction backward compatibility.
 25. **Full-Screen Onboarding Walkthrough (3-Slide Carousel)**: Implemented `OnboardingScreen` (`lib/screens/onboarding_screen.dart`) replacing the startup modal popup. Features 3 responsive slides with custom visual motifs: Vinyl Record player (zero login & ad-free streaming), Studio Equalizer & Audio Engine (SponsorBlock & real-time lyrics), and Open-Source MIT License & Copyright attribution (David Yehuda Surbakti). Integrated `just_audio_windows` for Windows desktop audio playback.
 26. **Canonical Search Ranking & Spotify-Style Top Result Card**: Implemented `calculateAuthorityBonus` taking YouTube organic search ranking decay (+50, +35, +25, etc.), Deezer organic stream popularity decay (+40, +25, +15, etc.), canonical consensus bonus (+60 when ranked in top 3 across both platforms), and official artist/Topic/VEVO bonus (+25). Re-architected `search_tab.dart` into a Spotify-style "Hasil Teratas" card with 68x68 cover artwork, "Rekomendasi Utama" pill badge, quick Rose Pink play button, and "Lagu Lainnya" list for secondary results.
+27. **Universal Track Options Action Sheet**: Integrated `more_vert` (three dots) quick action button on both "Hasil Teratas" and "Lagu Lainnya" search results opening a Rose & Obsidian modal sheet (`TrackOptionsSheet`). Provides shortcuts for Like/Unlike, instant single-track offline download with status feedback (`downloadSingleTrack`), playlist management ("Tambah ke Playlist" with on-the-fly new playlist creation), Play Next, and Add to Queue.
 
 ## Verification Status
 - Version: 1.0.4 (Build 5)
 - Static Analysis: `flutter analyze` passed (0 issues).
-- Unit Tests: `flutter test` passed (76/76 tests passing).
+- Unit Tests: `flutter test` passed (78/78 tests passing).
 - Build: Release split-per-ABI APKs generated in `apk/`.

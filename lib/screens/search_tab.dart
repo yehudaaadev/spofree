@@ -413,7 +413,16 @@ class _SearchTabState extends State<SearchTab> {
                         ],
                       ),
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 4),
+                    IconButton(
+                      icon: const Icon(Icons.more_vert, color: AppTheme.textSecondary, size: 22),
+                      tooltip: 'Opsi Lagu',
+                      onPressed: () {
+                        HapticFeedback.selectionClick();
+                        TrackOptionsSheet.show(context, track, contextQueue: _results);
+                      },
+                    ),
+                    const SizedBox(width: 4),
                     GestureDetector(
                       onTap: () {
                         HapticFeedback.selectionClick();
