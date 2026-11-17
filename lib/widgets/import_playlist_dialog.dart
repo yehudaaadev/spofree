@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../providers/library_provider.dart';
 import '../providers/player_provider.dart';
 import '../services/playlist_import_service.dart';
+import '../theme/app_theme.dart';
 
 class ImportPlaylistDialog extends StatefulWidget {
   const ImportPlaylistDialog({super.key});
@@ -82,10 +83,10 @@ class _ImportPlaylistDialogState extends State<ImportPlaylistDialog> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1DB954).withValues(alpha: 0.15),
+                      color: AppTheme.primaryRose.withValues(alpha: 0.15),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.link, color: Color(0xFF1DB954), size: 22),
+                    child: const Icon(Icons.link, color: AppTheme.primaryRose, size: 22),
                   ),
                   const SizedBox(width: 12),
                   const Expanded(
@@ -142,16 +143,16 @@ class _ImportPlaylistDialogState extends State<ImportPlaylistDialog> {
                 const Center(
                   child: Padding(
                     padding: EdgeInsets.symmetric(vertical: 16),
-                    child: CircularProgressIndicator(color: Color(0xFF1DB954)),
+                    child: CircularProgressIndicator(color: AppTheme.primaryRose),
                   ),
                 )
               else if (_result != null) ...[
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF181818),
+                    color: AppTheme.surface,
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFF1DB954).withValues(alpha: 0.3)),
+                    border: Border.all(color: AppTheme.primaryRose.withValues(alpha: 0.3)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -162,7 +163,7 @@ class _ImportPlaylistDialogState extends State<ImportPlaylistDialog> {
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
                               color: _result!.source == 'Spotify'
-                                  ? const Color(0xFF1DB954)
+                                  ? AppTheme.primaryRose
                                   : Colors.redAccent,
                               borderRadius: BorderRadius.circular(4),
                             ),
@@ -217,7 +218,7 @@ class _ImportPlaylistDialogState extends State<ImportPlaylistDialog> {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text('Memutar ${_result!.title} (${_result!.tracks.length} lagu)'),
-                                backgroundColor: const Color(0xFF1DB954),
+                                backgroundColor: AppTheme.primaryRose,
                               ),
                             );
                           }
@@ -229,8 +230,8 @@ class _ImportPlaylistDialogState extends State<ImportPlaylistDialog> {
                     Expanded(
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF1DB954),
-                          foregroundColor: Colors.black,
+                          backgroundColor: AppTheme.primaryRose,
+                          foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         ),
@@ -242,7 +243,7 @@ class _ImportPlaylistDialogState extends State<ImportPlaylistDialog> {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text('Playlist ${_result!.title} berhasil disimpan ke Koleksi!'),
-                                backgroundColor: const Color(0xFF1DB954),
+                                backgroundColor: AppTheme.primaryRose,
                               ),
                             );
                           }
@@ -257,8 +258,8 @@ class _ImportPlaylistDialogState extends State<ImportPlaylistDialog> {
                   width: double.infinity,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1DB954),
-                      foregroundColor: Colors.black,
+                      backgroundColor: AppTheme.primaryRose,
+                      foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),

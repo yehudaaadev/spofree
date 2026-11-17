@@ -37,7 +37,7 @@ class _SearchTabState extends State<SearchTab> {
 
   static const List<_GenreCardData> _genres = [
     _GenreCardData('Pop Indo', 'Pop Indonesia', [Color(0xFFE1306C), Color(0xFF833AB4)], Icons.music_note),
-    _GenreCardData('Top Global', 'Top Hits Global', [Color(0xFF1DB954), Color(0xFF191414)], Icons.public),
+    _GenreCardData('Top Global', 'Top Hits Global', [Color(0xFFF43F5E), Color(0xFF16161B)], Icons.public),
     _GenreCardData('Lofi & Santai', 'Lofi Chill Beats', [Color(0xFF4A00E0), Color(0xFF8E2DE2)], Icons.nightlight_round),
     _GenreCardData('Rock Klasik', 'Rock', [Color(0xFFE52D27), Color(0xFFB31217)], Icons.electric_bolt),
     _GenreCardData('Hip Hop & RnB', 'Hip Hop R&B', [Color(0xFFF7971E), Color(0xFFFFD200)], Icons.speaker_group),

@@ -55,8 +55,8 @@ class EqualizerSheet extends StatelessWidget {
                 ),
                 Switch(
                   value: player.equalizerEnabled,
-                  activeThumbColor: const Color(0xFF1DB954),
-                  activeTrackColor: const Color(0xFF1DB954).withValues(alpha: 0.4),
+                  activeThumbColor: AppTheme.primaryRose,
+                  activeTrackColor: AppTheme.primaryRose.withValues(alpha: 0.4),
                   onChanged: supported ? (val) => player.setEqualizerEnabled(val) : null,
                 ),
               ],
@@ -102,7 +102,7 @@ class EqualizerSheet extends StatelessWidget {
                 return ChoiceChip(
                   label: Text(preset),
                   selected: isSelected,
-                  selectedColor: const Color(0xFF1DB954),
+                  selectedColor: AppTheme.primaryRose,
                   backgroundColor: const Color(0xFF282828),
                   labelStyle: TextStyle(
                     color: isSelected ? Colors.black : Colors.white70,
@@ -125,7 +125,7 @@ class EqualizerSheet extends StatelessWidget {
                 ),
                 Text(
                   '${(player.bassBoostGain * 100).round()}%',
-                  style: const TextStyle(color: Color(0xFF1DB954), fontWeight: FontWeight.bold),
+                  style: const TextStyle(color: AppTheme.primaryRose, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -133,7 +133,7 @@ class EqualizerSheet extends StatelessWidget {
               value: player.bassBoostGain,
               min: 0.0,
               max: 1.0,
-              activeColor: const Color(0xFF1DB954),
+              activeColor: AppTheme.primaryRose,
               inactiveColor: Colors.white12,
               onChanged: (player.equalizerEnabled && supported)
                   ? (val) => player.setBassBoost(val)
@@ -156,7 +156,7 @@ class EqualizerSheet extends StatelessWidget {
                   player.pitchSemitones == 0
                       ? 'Standar (0)'
                       : '${player.pitchSemitones > 0 ? "+" : ""}${player.pitchSemitones} Semitone',
-                  style: const TextStyle(color: Color(0xFF1DB954), fontWeight: FontWeight.bold),
+                  style: const TextStyle(color: AppTheme.primaryRose, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -165,7 +165,7 @@ class EqualizerSheet extends StatelessWidget {
               min: -6.0,
               max: 6.0,
               divisions: 12,
-              activeColor: const Color(0xFF1DB954),
+              activeColor: AppTheme.primaryRose,
               inactiveColor: Colors.white12,
               onChanged: (val) => player.setPitchSemitones(val.round()),
             ),
@@ -183,7 +183,7 @@ class EqualizerSheet extends StatelessWidget {
                 final isSelected = player.audioPreset == p;
                 return ActionChip(
                   label: Text(p),
-                  backgroundColor: isSelected ? const Color(0xFF1DB954) : const Color(0xFF282828),
+                  backgroundColor: isSelected ? AppTheme.primaryRose : const Color(0xFF282828),
                   labelStyle: TextStyle(
                     color: isSelected ? Colors.black : Colors.white70,
                     fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
@@ -205,7 +205,7 @@ class EqualizerSheet extends StatelessWidget {
                   player.crossfadeSeconds == 0
                       ? 'Mati'
                       : '${player.crossfadeSeconds} detik',
-                  style: const TextStyle(color: Color(0xFF1DB954), fontWeight: FontWeight.bold),
+                  style: const TextStyle(color: AppTheme.primaryRose, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -219,7 +219,7 @@ class EqualizerSheet extends StatelessWidget {
               min: 0.0,
               max: 12.0,
               divisions: 6,
-              activeColor: const Color(0xFF1DB954),
+              activeColor: AppTheme.primaryRose,
               inactiveColor: Colors.white12,
               onChanged: (val) => player.setCrossfadeSeconds(val.round()),
             ),
@@ -242,7 +242,7 @@ class EqualizerSheet extends StatelessWidget {
                           ? 'Kiri ${((-player.balance) * 100).round()}%'
                           : 'Kanan ${(player.balance * 100).round()}%',
                   style: const TextStyle(
-                    color: Color(0xFF1DB954),
+                    color: AppTheme.primaryRose,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -258,7 +258,7 @@ class EqualizerSheet extends StatelessWidget {
               min: -1.0,
               max: 1.0,
               divisions: 20,
-              activeColor: const Color(0xFF1DB954),
+              activeColor: AppTheme.primaryRose,
               inactiveColor: Colors.white12,
               onChanged: (val) => player.setBalance(val),
             ),
@@ -288,8 +288,8 @@ class EqualizerSheet extends StatelessWidget {
                 ),
                 Switch(
                   value: player.sponsorBlockEnabled,
-                  activeThumbColor: const Color(0xFF1DB954),
-                  activeTrackColor: const Color(0xFF1DB954).withValues(alpha: 0.4),
+                  activeThumbColor: AppTheme.primaryRose,
+                  activeTrackColor: AppTheme.primaryRose.withValues(alpha: 0.4),
                   onChanged: (_) => player.toggleSponsorBlock(),
                 ),
               ],

@@ -7,7 +7,6 @@ import '../providers/player_provider.dart';
 import '../services/update_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/mini_player.dart';
-import '../widgets/terms_dialog.dart';
 import 'home_tab.dart';
 import 'library_tab.dart';
 import 'search_tab.dart';
@@ -34,11 +33,6 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        TermsDisclaimerDialog.checkAndShow(context);
-      }
-    });
     _checkUpdate();
   }
 

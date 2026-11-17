@@ -2,13 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
-  static const Color background = Color(0xFF121212);
-  static const Color surface = Color(0xFF181818);
-  static const Color card = Color(0xFF242424);
-  static const Color primaryGreen = Color(0xFF1DB954);
+  static const Color background = Color(0xFF0E0E11);
+  static const Color surface = Color(0xFF16161B);
+  static const Color card = Color(0xFF1F1F26);
+  static const Color primaryRose = Color(0xFFF43F5E);
+  static const Color primaryRoseLight = Color(0xFFFB7185);
+  // Alias kompatibilitas penuh untuk seluruh komponen yang memanggil primaryGreen
+  static const Color primaryGreen = primaryRose;
   static const Color textPrimary = Color(0xFFFFFFFF);
-  static const Color textSecondary = Color(0xFFB3B3B3);
-  static const Color divider = Color(0xFF282828);
+  static const Color textSecondary = Color(0xFFA1A1AA);
+  static const Color divider = Color(0xFF262630);
 
   static ThemeData get darkTheme {
     return ThemeData(
@@ -16,9 +19,9 @@ class AppTheme {
       brightness: Brightness.dark,
       fontFamily: GoogleFonts.plusJakartaSans().fontFamily,
       scaffoldBackgroundColor: background,
-      primaryColor: primaryGreen,
+      primaryColor: primaryRose,
       colorScheme: const ColorScheme.dark(
-        primary: primaryGreen,
+        primary: primaryRose,
         surface: surface,
         onSurface: textPrimary,
       ),

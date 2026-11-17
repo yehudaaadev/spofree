@@ -7,8 +7,8 @@ class SoundwaveDPainter extends CustomPainter {
   final Color secondaryColor;
 
   SoundwaveDPainter({
-    this.primaryColor = AppTheme.primaryGreen,
-    this.secondaryColor = const Color(0xFF1ED760),
+    this.primaryColor = AppTheme.primaryRose,
+    this.secondaryColor = AppTheme.primaryRoseLight,
   });
 
   @override

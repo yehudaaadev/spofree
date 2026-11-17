@@ -56,7 +56,7 @@ class TermsDisclaimerDialog extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: const Color(0x1F1DB954),
+                      color: const Color(0x1FF43F5E),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: const Icon(
