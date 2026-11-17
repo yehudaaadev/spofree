@@ -1,6 +1,7 @@
 # Wave Music (Standalone Music Player)
 
-[![Download APK](https://img.shields.io/badge/Download_APK-Langsung_Pasang_(26_MB)-2ea44f?style=for-the-badge&logo=android&logoColor=white)](https://gitlab.com/davidyehudaaa/spotify-gratis/-/raw/main/apk/WaveMusic.apk?inline=false)
+[![Download APK](https://img.shields.io/badge/Download_APK-v1.0.4_(25_MB)-F43F5E?style=for-the-badge&logo=android&logoColor=white)](https://gitlab.com/davidyehudaaa/spotify-gratis/-/raw/main/apk/WaveMusic.apk?inline=false)
+[![License: MIT](https://img.shields.io/badge/License-MIT-F43F5E?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
 > **Unduh & Pasang Langsung di HP Android:**
 > - [Download WaveMusic.apk (ARM64 - Rekomendasi Semua HP Modern)](https://gitlab.com/davidyehudaaa/spotify-gratis/-/raw/main/apk/WaveMusic.apk?inline=false)
@@ -8,18 +9,21 @@
 >
 > *Cara Pasang:* Ketuk link di atas untuk download langsung, lalu buka file APK di HP dan aktifkan izin "Install unknown apps" jika diminta.
 
-Aplikasi pemutar musik mandiri berpenampilan Spotify Premium dengan audio stream YouTube bebas iklan, cover art resmi Deezer HD 1:1, unduhan offline, dan lirik sinkron.
+Aplikasi pemutar musik mandiri berpenampilan modern dalam tema **Rose Pink & Obsidian Charcoal** (`#F43F5E` & `#0E0E11`) dengan audio stream YouTube bebas iklan, cover art resmi Deezer HD 1:1, unduhan offline, lirik sinkron, dan dukungan pemutaran audio lintas-platform (Android & Windows Desktop).
 
-**Tanpa login, tanpa akun, tanpa cloud.** Aplikasi langsung terbuka ke beranda musik saat dipasang. Lagu disukai, playlist, dan riwayat disimpan lokal di perangkat.
+**Tanpa login, tanpa akun, tanpa cloud.** Dilengkapi layar pengenalan (*onboarding walkthrough*) 3 slide interaktif pada pemasangan pertama. Lagu disukai, playlist, dan riwayat disimpan 100% lokal di perangkat.
 
 ## Seluruh Fitur yang Tersedia
 
 ### 1. Fitur Premium Playback & Desain Modern
+- **Tema Visual Duo A (Rose & Obsidian)**: Perpaduan aksen Rose Pink (`#F43F5E`) dan latar belakang Obsidian Charcoal (`#0E0E11` & `#16161B`) yang dirancang khusus agar tidak norak, berkontras tajam (lolos WCAG AA/AAA), dan hemat daya pada layar OLED/AMOLED.
+- **Layar Onboarding Penuh (3 Slide)**: Sambutan visual interaktif bagi pengguna baru (Piringan Hitam Bebas Akun, Fitur Studio & SponsorBlock, Transparansi Lisensi & Pengembang) sebelum masuk ke pemutar musik.
 - Bebas Iklan 100% (ekstraksi stream audio murni).
 - On-Demand Playback & Unlimited Skips (tanpa shuffle paksa dan tanpa batas skip).
 - Scrubbing Seekbar bebas maju-mundur detik lagu.
 - Background & Lockscreen Playback dengan kontrol media Android 13+ (`POST_NOTIFICATIONS`).
-- **Solid Spotify Mini Player**: Permukaan solid gelap khas Spotify (`#282828` dengan batas `#383838`), animasi Mini Equalizer 3-bar dinamis saat lagu diputar, dan gestur geser horizontal (*swipe left/right*) untuk berpindah lagu dengan haptic feedback.
+- **Dukungan Audio Windows Desktop**: Dilengkapi backend Media Foundation native (`just_audio_windows`) sehingga lagu dapat berbunyi langsung di Windows Desktop selain di Android.
+- **Solid Rose Mini Player**: Permukaan solid arang gelap (`#16161B`), animasi Mini Equalizer dinamis beraksen Rose Pink saat lagu diputar, dan gestur geser horizontal (*swipe left/right*) untuk berpindah lagu dengan haptic feedback.
 - **Proteksi Audio & Headset**: Otomatis menjeda musik saat earphone/Bluetooth dicabut (`becomingNoisy`) dan menangani interupsi panggilan telepon secara cerdas.
 - **Pengecekan Pembaruan & Bantuan Baterai**: Pengecekan update APK otomatis dari GitLab dan tombol pintasan optimasi baterai (Doze mode) untuk ponsel Xiaomi/HyperOS, Oppo, Vivo, dan Samsung.
 - **Mode Piringan Hitam (Vinyl Disc)**: Pilihan tampilan cover art klasik atau piringan hitam vinyl berputar mulus 360 derajat lengkap dengan alur refleksi cahaya realistis.
@@ -77,11 +81,11 @@ lib/
 │  ├─ local_audio_service.dart  Pindai file audio lokal
 │  ├─ id3_writer.dart        Penulis tag ID3v2.3 (TIT2/TPE1/TALB/APIC)
 │  └─ (tanpa Firebase / tanpa service auth)
-├─ screens/                  main_screen, home_tab, search_tab, library_tab
+├─ screens/                  main_screen, onboarding_screen, home_tab, search_tab, library_tab
 └─ widgets/                  player_sheet, mini_player, queue_sheet, equalizer_sheet,
                               sleep_timer_dialog, playback_options_sheet, vinyl_disc_widget,
                               mini_visualizer, lyric_share_dialog, export_audio_dialog,
-                              import_playlist_dialog, app_logo
+                              import_playlist_dialog, app_logo, terms_dialog
 ```
 
 Catatan perilaku penting:
@@ -154,3 +158,9 @@ Tes unit mencakup deteksi format audio, pemetaan kualitas bitrate dan pemilihan
 stream, parser lirik LRC, serialisasi `TrackModel`, penulisan tag ID3, pembuatan
 nama berkas ekspor, serta parsing header `Range`/`Content-Range` untuk pengambilan
 stream YouTube.
+
+## Lisensi & Pengembang
+
+- **Pengembang**: David Yehuda Surbakti
+- **Lisensi**: [MIT License](https://opensource.org/licenses/MIT) - Perangkat lunak sumber terbuka (*Open Source*) untuk keperluan riset, edukasi, dan pemutaran musik mandiri.
+- **Penafian Hak Cipta**: Wave Music tidak meng-host atau mendistribusikan berkas berhak cipta pada peladen mandiri. Seluruh lagu, rekaman suara, nama artis, dan sampul album sepenuhnya merupakan hak milik pencipta dan pemilik lisensi masing-masing.
