@@ -1,6 +1,6 @@
 {
-  "versionCode": 4,
-  "versionName": "1.0.3",
-  "releaseNotes": "Peningkatan performa instan stream YouTube, perbaikan pencarian lagu, penanganan pemutaran stabil tanpa terputus, dan pemindai audio lokal asinkron.",
+  "versionCode": 5,
+  "versionName": "1.0.4",
+  "releaseNotes": "Dialog penafian ketentuan & hak cipta peluncuran pertama, identitas pengembang David Yehuda Surbakti, dan atribusi lisensi MIT.",
   "downloadUrl": "https://gitlab.com/davidyehudaaa/spotify-gratis/-/raw/main/apk/WaveMusic.apk?inline=false"
 }

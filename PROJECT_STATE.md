@@ -29,9 +29,10 @@
 20. **Two-Tier Priority Queue ("Play Next")**: Implemented user-priority queue (`playNext`) inserting tracks right after currently playing item before resuming background playlist context.
 21. **Universal Playlist Backup**: Implemented `PlaylistBackupService` for two-way export and restore via JSON and standard M3U (#EXTM3U) formats.
 22. **Stereo Audio Balance**: Implemented Left/Right balance control (-1.0 to 1.0) with persistence.
+23. **First-Launch Disclaimer & Terms Modal**: Implemented `TermsDisclaimerDialog` (`lib/widgets/terms_dialog.dart`) displayed via `SharedPreferences` (`has_accepted_terms_v1`) on first application launch. Explains educational & personal non-commercial scope, third-party public stream origin (YouTube & Spotify metadata), copyright ownership, and user responsibility.
 
 ## Verification Status
-- Version: 1.0.3 (Build 4)
+- Version: 1.0.4 (Build 5)
 - Static Analysis: `flutter analyze` passed (0 issues).
-- Unit Tests: `flutter test` passed (66/66 tests passing).
+- Unit Tests: `flutter test` passed (68/68 tests passing).
 - Build: Release split-per-ABI APKs generated in `apk/`.

@@ -32,8 +32,8 @@ class UpdateService {
   UpdateService._();
   static final UpdateService instance = UpdateService._();
 
-  static const int currentVersionCode = 4;
-  static const String currentVersionName = '1.0.3';
+  static const int currentVersionCode = 5;
+  static const String currentVersionName = '1.0.4';
 
   static const MethodChannel _channel =
       MethodChannel('com.david.spotify_pribadi/storage');
