@@ -152,5 +152,103 @@ void main() {
 
       expect(scoreNormal, greaterThan(scoreKaraoke));
     });
+
+    test('authorityBonus mendongkrak skor lagu resmi / otoritas tertinggi', () {
+      const canonical = TrackModel(
+        id: '1',
+        title: 'Magnolia',
+        artist: 'Playboi Carti',
+        album: 'YouTube Topic',
+        artworkUrl: '',
+        durationMs: 181000,
+        youtubeId: 'magnolia_official',
+      );
+
+      const fanUpload = TrackModel(
+        id: '2',
+        title: 'Magnolia',
+        artist: 'Playboi Carti',
+        album: 'Fan Channel',
+        artworkUrl: '',
+        durationMs: 181000,
+        youtubeId: 'magnolia_fan',
+      );
+
+      final bonusCanonical = MusicService.calculateAuthorityBonus(
+        canonical,
+        ytRank: 0,
+        deezerRank: 0,
+      );
+      final bonusFan = MusicService.calculateAuthorityBonus(
+        fanUpload,
+        ytRank: 8,
+      );
+
+      // 50 (YT #0) + 40 (Deezer #0) + 60 (Consensus) + 25 (Topic) = 175
+      expect(bonusCanonical, equals(175));
+      expect(bonusFan, equals(0));
+
+      final scoreCanonical = MusicService.scoreTrack(
+        canonical,
+        'magnolia',
+        authorityBonus: bonusCanonical,
+      );
+      final scoreFan = MusicService.scoreTrack(
+        fanUpload,
+        'magnolia',
+        authorityBonus: bonusFan,
+      );
+
+      expect(scoreCanonical, greaterThan(scoreFan + 100));
+    });
+  });
+
+  group('MusicService.calculateAuthorityBonus details', () {
+    const defaultTrack = TrackModel(
+      id: '10',
+      title: 'Hey Jude',
+      artist: 'The Beatles',
+      album: 'Past Masters',
+      artworkUrl: '',
+      durationMs: 420000,
+    );
+
+    test('memberikan bonus sesuai tangga popularitas organik YouTube', () {
+      expect(MusicService.calculateAuthorityBonus(defaultTrack, ytRank: 0), equals(50));
+      expect(MusicService.calculateAuthorityBonus(defaultTrack, ytRank: 1), equals(35));
+      expect(MusicService.calculateAuthorityBonus(defaultTrack, ytRank: 2), equals(25));
+      expect(MusicService.calculateAuthorityBonus(defaultTrack, ytRank: 3), equals(18));
+      expect(MusicService.calculateAuthorityBonus(defaultTrack, ytRank: 4), equals(12));
+      expect(MusicService.calculateAuthorityBonus(defaultTrack, ytRank: 6), equals(8));
+      expect(MusicService.calculateAuthorityBonus(defaultTrack, ytRank: 10), equals(0));
+    });
+
+    test('memberikan bonus sesuai tangga popularitas organik Deezer', () {
+      expect(MusicService.calculateAuthorityBonus(defaultTrack, deezerRank: 0), equals(40));
+      expect(MusicService.calculateAuthorityBonus(defaultTrack, deezerRank: 1), equals(25));
+      expect(MusicService.calculateAuthorityBonus(defaultTrack, deezerRank: 2), equals(15));
+      expect(MusicService.calculateAuthorityBonus(defaultTrack, deezerRank: 5), equals(8));
+      expect(MusicService.calculateAuthorityBonus(defaultTrack, deezerRank: 8), equals(0));
+    });
+
+    test('memberikan bonus kesepakatan kanonikal saat muncul di top 3 kedua layanan', () {
+      // 50 (yt#0) + 40 (deezer#0) + 60 (consensus) = 150
+      expect(
+        MusicService.calculateAuthorityBonus(defaultTrack, ytRank: 0, deezerRank: 0),
+        equals(150),
+      );
+    });
+
+    test('memberikan bonus artis/album resmi Topic atau VEVO', () {
+      const topicTrack = TrackModel(
+        id: '11',
+        title: 'Hey Jude',
+        artist: 'The Beatles - Topic',
+        album: 'YouTube Topic',
+        artworkUrl: '',
+        durationMs: 420000,
+      );
+      expect(MusicService.calculateAuthorityBonus(topicTrack), equals(25));
+    });
   });
 }

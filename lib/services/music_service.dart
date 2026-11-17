@@ -261,6 +261,21 @@ class MusicService {
 
     if (deezerTracks.isEmpty && ytTracks.isEmpty) return [];
 
+    // Peta peringkat bawaan untuk menghitung popularitas organik YouTube & Deezer
+    final ytRankMap = <String, int>{};
+    for (int i = 0; i < ytTracks.length; i++) {
+      final key =
+          '${TrackModel.cleanArtist(ytTracks[i].artist).toLowerCase()}__${TrackModel.cleanTitle(ytTracks[i].title).toLowerCase()}';
+      ytRankMap.putIfAbsent(key, () => i);
+    }
+
+    final deezerRankMap = <String, int>{};
+    for (int i = 0; i < deezerTracks.length; i++) {
+      final key =
+          '${TrackModel.cleanArtist(deezerTracks[i].artist).toLowerCase()}__${TrackModel.cleanTitle(deezerTracks[i].title).toLowerCase()}';
+      deezerRankMap.putIfAbsent(key, () => i);
+    }
+
     // Tempatkan hasil YouTube teratas berdampingan dengan Deezer agar lagu yang
     // diblokir di Deezer (seperti Oasis Champagne Supernova) langsung terangkat.
     final candidates = <TrackModel>[
@@ -288,9 +303,70 @@ class MusicService {
       merged.add(track);
     }
 
-    // Urutkan berdasarkan skor relevansi murni.
-    merged.sort((a, b) => scoreTrack(b, q).compareTo(scoreTrack(a, q)));
+    // Urutkan berdasarkan skor relevansi dan otoritas peringkat kanonikal.
+    merged.sort((a, b) {
+      final keyA =
+          '${TrackModel.cleanArtist(a.artist).toLowerCase()}__${TrackModel.cleanTitle(a.title).toLowerCase()}';
+      final keyB =
+          '${TrackModel.cleanArtist(b.artist).toLowerCase()}__${TrackModel.cleanTitle(b.title).toLowerCase()}';
+      final bonusA = calculateAuthorityBonus(a, ytRank: ytRankMap[keyA], deezerRank: deezerRankMap[keyA]);
+      final bonusB = calculateAuthorityBonus(b, ytRank: ytRankMap[keyB], deezerRank: deezerRankMap[keyB]);
+      final scoreA = scoreTrack(a, q, authorityBonus: bonusA);
+      final scoreB = scoreTrack(b, q, authorityBonus: bonusB);
+      return scoreB.compareTo(scoreA);
+    });
     return merged;
+  }
+
+  /// Menghitung bonus popularitas organik dari YouTube & Deezer.
+  static int calculateAuthorityBonus(TrackModel track, {int? ytRank, int? deezerRank}) {
+    int bonus = 0;
+
+    // 1. YouTube organic popularity decay (peringkat 0 adalah video views terbanyak/relevan)
+    if (ytRank != null) {
+      if (ytRank == 0) {
+        bonus += 50;
+      } else if (ytRank == 1) {
+        bonus += 35;
+      } else if (ytRank == 2) {
+        bonus += 25;
+      } else if (ytRank == 3) {
+        bonus += 18;
+      } else if (ytRank == 4) {
+        bonus += 12;
+      } else if (ytRank <= 7) {
+        bonus += 8;
+      }
+    }
+
+    // 2. Deezer organic popularity decay
+    if (deezerRank != null) {
+      if (deezerRank == 0) {
+        bonus += 40;
+      } else if (deezerRank == 1) {
+        bonus += 25;
+      } else if (deezerRank == 2) {
+        bonus += 15;
+      } else if (deezerRank <= 5) {
+        bonus += 8;
+      }
+    }
+
+    // 3. Kesepakatan Kanonikal Ganda (muncul di peringkat atas kedua layanan)
+    if (ytRank != null && ytRank <= 3 && deezerRank != null && deezerRank <= 3) {
+      bonus += 60;
+    }
+
+    // 4. Deteksi artis/album resmi YouTube Topic / VEVO
+    final albumLower = track.album.toLowerCase();
+    final artistLower = track.artist.toLowerCase();
+    if (albumLower.contains('topic') ||
+        artistLower.contains('topic') ||
+        artistLower.contains('vevo')) {
+      bonus += 25;
+    }
+
+    return bonus;
   }
 
   /// Backward-compatibility wrapper untuk pencarian.
@@ -358,7 +434,7 @@ class MusicService {
           id: 'yt_${video.id.value}',
           title: meta.title,
           artist: meta.artist,
-          album: 'YouTube',
+          album: video.author.toLowerCase().contains('topic') ? 'YouTube Topic' : 'YouTube',
           artworkUrl: video.thumbnails.highResUrl,
           durationMs: durationSec * 1000,
           youtubeId: video.id.value,
@@ -372,8 +448,8 @@ class MusicService {
   }
 
   /// Menilai kecocokan lagu terhadap query pencarian pengguna (fungsi murni).
-  static int scoreTrack(TrackModel t, String query) {
-    int score = 0;
+  static int scoreTrack(TrackModel t, String query, {int authorityBonus = 0}) {
+    int score = authorityBonus;
     final q = query.toLowerCase().trim();
     final title = t.title.toLowerCase().trim();
     final artist = t.artist.toLowerCase().trim();

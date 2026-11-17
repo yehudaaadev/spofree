@@ -46,6 +46,7 @@ Aplikasi pemutar musik mandiri berpenampilan modern dalam tema **Rose Pink & Obs
 - Riwayat "Baru Saja Diputar" (Recently Played).
 
 ### 3. Eksplorasi & Beranda Pintar
+- **Hasil Teratas Kanonikal (Top Result Card)**: Algoritma pencarian kanonikal yang memprioritaskan versi resmi berotoritas tinggi (popularitas organik YouTube & Deezer, kesepakatan konsensus ganda, serta kanal Topic/VEVO resmi) disajikan dalam kartu sorotan "Hasil Teratas" bergaya Spotify lengkap dengan badge rekomendasi utama dan tombol putar instan.
 - **Spotify 6-Grid Quick Access**: Pintasan cepat 6 kartu lagu teratas dan lagu baru diputar tepat di bawah ucapan selamat datang beranda.
 - **Filter Mood & Kategori**: Filter chip instan (Semua, Pop Indonesia, Top Global, Lofi Santai, Rock, Akustik, K-Pop) dengan pembaruan daftar lagu instan.
 - **Genre & Mood Browse Hub**: 10 kartu kategori gradien kontras tinggi pada layar pencarian untuk eksplorasi lagu cepat 1-ketukan.

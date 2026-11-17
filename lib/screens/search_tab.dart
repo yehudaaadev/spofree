@@ -215,7 +215,7 @@ class _SearchTabState extends State<SearchTab> {
             Expanded(
               child: _isLoading
                   ? const Center(
-                      child: CircularProgressIndicator(color: AppTheme.primaryGreen),
+                      child: CircularProgressIndicator(color: AppTheme.primaryRose),
                     )
                   : _currentQuery.isNotEmpty
                       ? _buildResultsList(player)
@@ -251,60 +251,261 @@ class _SearchTabState extends State<SearchTab> {
       );
     }
 
-    return ListView.builder(
+    final topTrack = _results.first;
+    final otherTracks = _results.skip(1).toList();
+
+    return ListView(
       padding: const EdgeInsets.only(bottom: 86),
-      itemCount: _results.length,
-      itemBuilder: (context, index) {
-        final track = _results[index];
-        return ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-          leading: ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: CachedNetworkImage(
-              imageUrl: track.artworkUrl,
-              width: 50,
-              height: 50,
-              fit: BoxFit.cover,
-              placeholder: (_, _) => Container(color: AppTheme.card),
-              errorWidget: (_, _, _) => Container(
-                color: AppTheme.card,
-                child: const Icon(Icons.music_note, size: 24),
+      children: [
+        _buildTopResultCard(topTrack, player),
+        if (otherTracks.isNotEmpty) ...[
+          const Padding(
+            padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
+            child: Text(
+              'Lagu Lainnya',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.textPrimary,
               ),
             ),
           ),
-          title: Text(
-            track.title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontWeight: FontWeight.w600,
-              fontSize: 14,
+          ...otherTracks.map((track) => _buildTrackTile(track, player)),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildTopResultCard(TrackModel track, PlayerProvider player) {
+    final isCurrent = player.currentTrack?.id == track.id;
+    final isPlaying = isCurrent && player.isPlaying;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Hasil Teratas',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
               color: AppTheme.textPrimary,
             ),
           ),
-          subtitle: Text(
-            '${track.artist} • ${track.formattedDuration}',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+          const SizedBox(height: 10),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () {
+                HapticFeedback.selectionClick();
+                if (isCurrent) {
+                  if (isPlaying) {
+                    player.pause();
+                  } else {
+                    player.resume();
+                  }
+                } else {
+                  player.playTrack(track, queue: _results);
+                }
+              },
+              onLongPress: () {
+                HapticFeedback.selectionClick();
+                TrackOptionsSheet.show(context, track, contextQueue: _results);
+              },
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppTheme.card,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isCurrent
+                        ? AppTheme.primaryRose.withValues(alpha: 0.6)
+                        : AppTheme.divider,
+                    width: isCurrent ? 1.2 : 0.8,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.3),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: CachedNetworkImage(
+                        imageUrl: track.artworkUrl,
+                        width: 68,
+                        height: 68,
+                        fit: BoxFit.cover,
+                        placeholder: (_, _) => Container(
+                          width: 68,
+                          height: 68,
+                          color: AppTheme.surface,
+                        ),
+                        errorWidget: (_, _, _) => Container(
+                          width: 68,
+                          height: 68,
+                          color: AppTheme.surface,
+                          child: const Icon(
+                            Icons.music_note,
+                            size: 30,
+                            color: AppTheme.textSecondary,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.primaryRose.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: const Text(
+                                  'Rekomendasi Utama',
+                                  style: TextStyle(
+                                    color: AppTheme.primaryRoseLight,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: -0.2,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            track.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: isCurrent
+                                  ? AppTheme.primaryRoseLight
+                                  : AppTheme.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Lagu • ${track.artist}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppTheme.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    GestureDetector(
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        if (isCurrent) {
+                          if (isPlaying) {
+                            player.pause();
+                          } else {
+                            player.resume();
+                          }
+                        } else {
+                          player.playTrack(track, queue: _results);
+                        }
+                      },
+                      child: Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: AppTheme.primaryRose,
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppTheme.primaryRose.withValues(alpha: 0.45),
+                              blurRadius: 10,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          isPlaying ? Icons.pause : Icons.play_arrow,
+                          color: Colors.white,
+                          size: 26,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
-          trailing: IconButton(
-            icon: const Icon(Icons.more_vert, color: AppTheme.textSecondary, size: 20),
-            tooltip: 'Opsi Lagu',
-            onPressed: () {
-              HapticFeedback.selectionClick();
-              TrackOptionsSheet.show(context, track, contextQueue: _results);
-            },
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTrackTile(TrackModel track, PlayerProvider player) {
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+      leading: ClipRRect(
+        borderRadius: BorderRadius.circular(6),
+        child: CachedNetworkImage(
+          imageUrl: track.artworkUrl,
+          width: 50,
+          height: 50,
+          fit: BoxFit.cover,
+          placeholder: (_, _) => Container(color: AppTheme.card),
+          errorWidget: (_, _, _) => Container(
+            color: AppTheme.card,
+            child: const Icon(Icons.music_note, size: 24),
           ),
-          onTap: () {
-            HapticFeedback.selectionClick();
-            player.playTrack(track, queue: _results);
-          },
-          onLongPress: () {
-            HapticFeedback.selectionClick();
-            TrackOptionsSheet.show(context, track, contextQueue: _results);
-          },
-        );
+        ),
+      ),
+      title: Text(
+        track.title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(
+          fontWeight: FontWeight.w600,
+          fontSize: 14,
+          color: AppTheme.textPrimary,
+        ),
+      ),
+      subtitle: Text(
+        '${track.artist} • ${track.formattedDuration}',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+      ),
+      trailing: IconButton(
+        icon: const Icon(Icons.more_vert, color: AppTheme.textSecondary, size: 20),
+        tooltip: 'Opsi Lagu',
+        onPressed: () {
+          HapticFeedback.selectionClick();
+          TrackOptionsSheet.show(context, track, contextQueue: _results);
+        },
+      ),
+      onTap: () {
+        HapticFeedback.selectionClick();
+        player.playTrack(track, queue: _results);
+      },
+      onLongPress: () {
+        HapticFeedback.selectionClick();
+        TrackOptionsSheet.show(context, track, contextQueue: _results);
       },
     );
   }
