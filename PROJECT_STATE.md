@@ -36,7 +36,7 @@
 27. **Universal Track Options Action Sheet**: Integrated `more_vert` (three dots) quick action button on both "Hasil Teratas" and "Lagu Lainnya" search results opening a Rose & Obsidian modal sheet (`TrackOptionsSheet`). Provides shortcuts for Like/Unlike, instant single-track offline download with status feedback (`downloadSingleTrack`), playlist management ("Tambah ke Playlist" with on-the-fly new playlist creation), Play Next, and Add to Queue.
 
 ## Verification Status
-- Version: 1.0.4 (Build 5)
+- Version: 1.1.0 (Build 6)
 - Static Analysis: `flutter analyze` passed (0 issues).
 - Unit Tests: `flutter test` passed (78/78 tests passing).
 - Build: Release split-per-ABI APKs generated in `apk/`.
