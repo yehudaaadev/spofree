@@ -28,6 +28,7 @@ class ResolvedAudioStream {
     this.totalBytes,
     this.codec,
     this.container,
+    this.isDirectProgressive = false,
   });
 
   /// URL stream sementara dari CDN YouTube.
@@ -47,6 +48,10 @@ class ResolvedAudioStream {
 
   /// Kontainer berkas, mis. `webm` atau `mp4`.
   final String? container;
+
+  /// Apakah stream ini berupa progressive stream langsung (mis. tag 18 MP4)
+  /// yang aman diputar langsung oleh ExoPlayer tanpa proxy range lokal.
+  final bool isDirectProgressive;
 
   /// Menentukan ukuran total dari parameter `clen` pada URL.
   ///
@@ -163,17 +168,26 @@ class MusicService {
           .toList();
     }
 
-    // Fallback: campur pencarian artis dengan chart global agar tidak
-    // menumpuk lagu dari artis yang sama.
+    // Fallback: campur lagu radio artis, lagu terkait, dan chart global agar
+    // tidak menumpuk lagu dari artis yang sama (diversifikasi musik sejati).
     final mixed = <TrackModel>[];
     mixed.addAll(radio);
-    mixed.addAll(await searchDeezer(track.artist));
     mixed.addAll(await getChartTracks());
 
     final seen = <String>{track.id};
+    final artistCounts = <String, int>{
+      track.artist.toLowerCase(): 1,
+    };
     final result = <TrackModel>[];
+
     for (final item in mixed) {
-      if (seen.add(item.id)) result.add(item);
+      if (!seen.add(item.id)) continue;
+      final artLower = item.artist.toLowerCase();
+      final currentCount = artistCounts[artLower] ?? 0;
+      // Batasi maksimal 2 lagu untuk artis yang sama agar antrean tidak homogen.
+      if (currentCount >= 2) continue;
+      artistCounts[artLower] = currentCount + 1;
+      result.add(item);
     }
     return result.take(limit).toList();
   }
@@ -232,8 +246,57 @@ class MusicService {
     return [];
   }
 
-  Future<List<TrackModel>> searchDeezer(String query) async {
-    if (query.trim().isEmpty) return [];
+  /// Pencarian musik hybrid berkecepatan tinggi yang menggabungkan katalog
+  /// resmi Deezer dan YouTube Music / Topics.
+  Future<List<TrackModel>> searchMusic(String query) async {
+    final q = query.trim();
+    if (q.isEmpty) return [];
+
+    final deezerFuture = _fetchDeezerSearch(q);
+    final ytFuture = _fetchYouTubeSearch(q);
+
+    final results = await Future.wait([deezerFuture, ytFuture]);
+    final deezerTracks = results[0];
+    final ytTracks = results[1];
+
+    if (deezerTracks.isEmpty && ytTracks.isEmpty) return [];
+
+    // Tempatkan hasil YouTube teratas berdampingan dengan Deezer agar lagu yang
+    // diblokir di Deezer (seperti Oasis Champagne Supernova) langsung terangkat.
+    final candidates = <TrackModel>[
+      ...ytTracks.take(8),
+      ...deezerTracks,
+      ...ytTracks.skip(8),
+    ];
+
+    final seenKeys = <String>{};
+    final merged = <TrackModel>[];
+
+    for (final track in candidates) {
+      final key = '${TrackModel.cleanArtist(track.artist).toLowerCase()}__${TrackModel.cleanTitle(track.title).toLowerCase()}';
+      if (seenKeys.contains(key)) {
+        // Bila track sudah ada dari Deezer tapi belum punya youtubeId, tempelkan
+        // youtubeId dari kandidat YouTube agar pemutaran awal menjadi instan.
+        final idx = merged.indexWhere((m) =>
+            '${TrackModel.cleanArtist(m.artist).toLowerCase()}__${TrackModel.cleanTitle(m.title).toLowerCase()}' == key);
+        if (idx != -1 && merged[idx].youtubeId == null && track.youtubeId != null) {
+          merged[idx] = merged[idx].copyWith(youtubeId: track.youtubeId);
+        }
+        continue;
+      }
+      seenKeys.add(key);
+      merged.add(track);
+    }
+
+    // Urutkan berdasarkan skor relevansi murni.
+    merged.sort((a, b) => scoreTrack(b, q).compareTo(scoreTrack(a, q)));
+    return merged;
+  }
+
+  /// Backward-compatibility wrapper untuk pencarian.
+  Future<List<TrackModel>> searchDeezer(String query) => searchMusic(query);
+
+  Future<List<TrackModel>> _fetchDeezerSearch(String query) async {
     try {
       final response = await _dio.get(
         'https://api.deezer.com/search',
@@ -247,30 +310,118 @@ class MusicService {
             .toList();
       }
     } catch (e) {
-      debugPrint('[MusicService] searchDeezer gagal, beralih ke YouTube: $e');
+      debugPrint('[MusicService] Deezer search gagal: $e');
     }
-
-    return _searchYouTubeFallback(query);
+    return [];
   }
 
-  Future<List<TrackModel>> _searchYouTubeFallback(String query) async {
+  Future<List<TrackModel>> _fetchYouTubeSearch(String query) async {
     try {
+      final qLower = query.toLowerCase();
       final searchList = await YoutubeClient.instance.client.search.search(query);
-      return searchList.take(20).map((video) {
+      final tracks = <TrackModel>[];
+
+      for (final video in searchList.take(20)) {
+        final titleLower = video.title.toLowerCase();
+        final authorLower = video.author.toLowerCase();
         final durationSec = video.duration?.inSeconds ?? 0;
-        return TrackModel(
-          id: video.id.value,
-          title: video.title,
-          artist: video.author,
+
+        // Hindari kompilasi video panjang (> 15 menit)
+        if (durationSec > 900) continue;
+
+        // Filter karaoke kecuali diminta secara eksplisit
+        if (!qLower.contains('karaoke') &&
+            (titleLower.contains('karaoke') || authorLower.contains('karaoke'))) {
+          continue;
+        }
+
+        // Filter loop / 1 hour
+        if (!qLower.contains('1 hour') && !qLower.contains('1 jam') && !qLower.contains('loop') &&
+            (titleLower.contains('1 hour') || titleLower.contains('1 jam') || titleLower.contains('loop'))) {
+          continue;
+        }
+
+        // Filter slowed / sped up
+        if (!qLower.contains('slowed') && !qLower.contains('speed up') && !qLower.contains('sped up') &&
+            (titleLower.contains('slowed') || titleLower.contains('speed up') || titleLower.contains('sped up'))) {
+          continue;
+        }
+
+        // Filter video lirik amatir agar tidak mengotori antrean
+        if (!qLower.contains('lirik') && !qLower.contains('lyric') && !qLower.contains('letra') &&
+            (titleLower.contains('lyrics') || titleLower.contains('lirik') || titleLower.contains('letra'))) {
+          continue;
+        }
+
+        final meta = TrackModel.parseYouTubeMetadata(video.title, video.author);
+        tracks.add(TrackModel(
+          id: 'yt_${video.id.value}',
+          title: meta.title,
+          artist: meta.artist,
           album: 'YouTube',
           artworkUrl: video.thumbnails.highResUrl,
           durationMs: durationSec * 1000,
           youtubeId: video.id.value,
-        );
-      }).toList();
+        ));
+      }
+      return tracks;
     } catch (e) {
-      debugPrint('[MusicService] pencarian YouTube gagal: $e');
+      debugPrint('[MusicService] YouTube search gagal: $e');
       return [];
+    }
+  }
+
+  /// Menilai kecocokan lagu terhadap query pencarian pengguna (fungsi murni).
+  static int scoreTrack(TrackModel t, String query) {
+    int score = 0;
+    final q = query.toLowerCase().trim();
+    final title = t.title.toLowerCase().trim();
+    final artist = t.artist.toLowerCase().trim();
+    final tokens = q.split(RegExp(r'\s+')).where((s) => s.isNotEmpty).toList();
+
+    // Exact title match
+    if (title == q) {
+      score += 35;
+    } else if (title.startsWith(q)) {
+      score += 20;
+    } else if (title.contains(q)) {
+      score += 15;
+    }
+
+    // Exact artist match
+    if (artist == q) {
+      score += 35;
+    } else if (artist.contains(q)) {
+      score += 15;
+    }
+
+    // Token matches
+    for (final tok in tokens) {
+      if (title.contains(tok)) score += 8;
+      if (artist.contains(tok)) score += 10;
+    }
+
+    // Penalti untuk versi cover jika pengguna tidak mencari cover
+    if (!q.contains('cover') && (title.contains('cover') || artist.contains('cover'))) {
+      score -= 25;
+    }
+    // Penalti untuk backing track, tribute, instrumental, karaoke
+    if (!q.contains('backing') && title.contains('backing track')) score -= 30;
+    if (!q.contains('tribute') && title.contains('tribute')) score -= 25;
+    if (!q.contains('karaoke') && (title.contains('karaoke') || artist.contains('karaoke'))) score -= 30;
+
+    // Bonus track yang sudah memiliki direct youtubeId (instant playback)
+    if (t.youtubeId != null) score += 5;
+
+    return score;
+  }
+
+  /// Memuat awal stream URL di background agar transisi lagu berikutnya instan.
+  Future<void> preloadTrackStream(TrackModel track, {String quality = 'Maksimal'}) async {
+    try {
+      await resolveAudioStreamInfo(track, quality: quality);
+    } catch (_) {
+      // Abaikan kegagalan preload di background.
     }
   }
 
@@ -292,17 +443,19 @@ class MusicService {
 
   /// Resolusi stream audio lengkap dengan metadata-nya.
   ///
-  /// Berbeda dengan [resolveAudioStream] yang hanya mengembalikan URL, hasil
-  /// sini juga memuat tipe konten dan ukuran berkas agar pemutar dapat
-  /// menarik data dengan rentang byte yang tepat.
+  /// [preferProgressive] memprioritaskan stream progressive (`tag 18` MP4)
+  /// yang memiliki `ratebypass=yes` sehingga dapat dimainkan langsung oleh
+  /// ExoPlayer tanpa batasan chunk range 403.
   Future<ResolvedAudioStream> resolveAudioStreamInfo(
     TrackModel track, {
     String quality = 'Maksimal',
     bool forceRefresh = false,
     String? preferredContainer,
+    bool preferProgressive = true,
   }) async {
     final cacheKey = '${track.id}_$quality'
-        '${preferredContainer != null ? '_$preferredContainer' : ''}';
+        '${preferredContainer != null ? '_$preferredContainer' : ''}'
+        '${preferProgressive ? '_prog' : ''}';
 
     if (!forceRefresh) {
       final cached = _streamUrlCache[cacheKey];
@@ -352,12 +505,41 @@ class MusicService {
       _videoIdCache[track.id] = videoId;
     }
 
-    final manifest = await yt.videos.streamsClient.getManifest(VideoId(videoId));
-    final selected = _selectPreferredStream(
+    // requireWatchPage: false memotong waktu pemuatan manifest dari ~1500ms
+    // menjadi ~350ms dan mencegah bot challenge watch-page.
+    final manifest = await yt.videos.streamsClient.getManifest(
+      VideoId(videoId),
+      requireWatchPage: false,
+    );
+
+    StreamInfo? selected;
+    bool isProgressive = false;
+
+    // Utamakan progressive stream MP4 (tag 18 atau progressive stream muxed lain)
+    // untuk pemutaran langsung tanpa drop 403 CDN.
+    if (preferProgressive && (preferredContainer == null || preferredContainer == 'mp4')) {
+      final tag18 = manifest.muxed.where((s) => s.tag == 18).toList();
+      if (tag18.isNotEmpty) {
+        selected = tag18.first;
+        isProgressive = true;
+      } else {
+        final muxedMp4 = manifest.muxed
+            .where((s) => s.container.name.toLowerCase() == 'mp4')
+            .toList();
+        if (muxedMp4.isNotEmpty) {
+          muxedMp4.sort((a, b) => a.size.totalBytes.compareTo(b.size.totalBytes));
+          selected = muxedMp4.first;
+          isProgressive = true;
+        }
+      }
+    }
+
+    selected ??= _selectPreferredStream(
       manifest.audioOnly,
       quality,
       preferredContainer,
     );
+
     if (selected == null) {
       throw Exception('Tidak ada stream audio yang tersedia untuk lagu ini.');
     }
@@ -367,16 +549,14 @@ class MusicService {
     return _describeStream(
       streamUrl,
       videoId: videoId,
-      codec: selected.audioCodec,
+      codec: selected is AudioStreamInfo ? selected.audioCodec : 'mp4a.40.2',
       container: selected.container.name,
+      totalBytes: selected.size.totalBytes,
+      isDirectProgressive: isProgressive,
     );
   }
 
   /// Memilih stream sesuai kualitas, dengan pilihan kontainer bila diminta.
-  ///
-  /// Kontainer `mp4` (AAC) dipakai sebagai cadangan ketika perangkat gagal
-  /// mendekode Opus/WebM. Bila kontainer yang diminta tidak tersedia, stream
-  /// terbaik apa pun dipakai sebagai gantinya.
   static AudioStreamInfo? _selectPreferredStream(
     List<AudioStreamInfo> audioOnly,
     String quality,
@@ -399,6 +579,8 @@ class MusicService {
     required String videoId,
     String? codec,
     String? container,
+    int? totalBytes,
+    bool isDirectProgressive = false,
   }) {
     final uri = Uri.tryParse(url);
     final mime = uri?.queryParameters['mime'] ?? '';
@@ -406,14 +588,17 @@ class MusicService {
 
     return ResolvedAudioStream(
       url: url,
-      contentType: contentType.isEmpty ? 'audio/mpeg' : contentType,
+      contentType: contentType.isEmpty
+          ? (isDirectProgressive ? 'video/mp4' : 'audio/mpeg')
+          : contentType,
       videoId: videoId,
-      totalBytes: ResolvedAudioStream.parseTotalBytesFromUrl(url),
+      totalBytes: totalBytes ?? ResolvedAudioStream.parseTotalBytesFromUrl(url),
       codec: codec,
       container: container ??
           ResolvedAudioStream.containerFromContentType(
             contentType.isEmpty ? null : contentType,
           ),
+      isDirectProgressive: isDirectProgressive,
     );
   }
 

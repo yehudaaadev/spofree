@@ -127,7 +127,7 @@ class _SearchTabState extends State<SearchTab> {
     });
 
     _saveSearchQuery(query);
-    final res = await _musicService.searchDeezer(query);
+    final res = await _musicService.searchMusic(query);
 
     if (mounted && _currentQuery == query) {
       setState(() {

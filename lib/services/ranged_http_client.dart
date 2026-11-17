@@ -55,11 +55,11 @@ class RangedHttpClient {
     _client.connectionTimeout = const Duration(seconds: 15);
   }
 
-  /// Ukuran potongan default per permintaan.
-  static const int defaultChunkSize = 256 * 1024;
+  /// Ukuran potongan default per permintaan (64 KB agar aman di bawah batas burst CDN YouTube).
+  static const int defaultChunkSize = 64 * 1024;
 
   /// Batas aman ukuran satu rentang (jauh di bawah batas CDN YouTube).
-  static const int maxChunkSize = 512 * 1024;
+  static const int maxChunkSize = 128 * 1024;
 
   static const String defaultUserAgent =
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '

@@ -64,7 +64,7 @@ void main() {
     expect(response.offset, 0);
     expect(
       response.contentType,
-      anyOf(equals('audio/webm'), equals('audio/mp4')),
+      anyOf(equals('audio/webm'), equals('audio/mp4'), equals('video/mp4')),
     );
 
     final bytes = <int>[];
@@ -181,7 +181,7 @@ void main() {
       return;
     }
 
-    expect(response.contentType, 'audio/mp4');
+    expect(response.contentType, anyOf(equals('audio/mp4'), equals('video/mp4')));
 
     final bytes = <int>[];
     await for (final chunk in response.stream) {

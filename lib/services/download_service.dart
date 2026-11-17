@@ -139,7 +139,8 @@ class DownloadService {
     required String quality,
     void Function(double progress)? onProgress,
   }) async {
-    const chunkSize = RangedHttpClient.defaultChunkSize;
+    // 256 KB per potongan untuk akselerasi unduhan tanpa membebani CDN.
+    const chunkSize = 256 * 1024;
     final client = RangedHttpClient();
     var url = initialUrl;
     var total = 0;

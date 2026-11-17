@@ -114,6 +114,47 @@ class TrackModel {
     );
   }
 
+  /// Membersihkan noise teks YouTube dari judul lagu (mis. `(Official Video)`, `(Lyrics)`).
+  static String cleanTitle(String raw) {
+    var title = raw;
+    final regexes = [
+      RegExp(r'\([^)]*?(official|video|audio|4k|hd|hq|lyrics|lyric|remastered|visualizer)[^)]*?\)', caseSensitive: false),
+      RegExp(r'\[[^\]]*?(official|video|audio|4k|hd|hq|lyrics|lyric|remastered|visualizer)[^\]]*?\]', caseSensitive: false),
+      RegExp(r'\s*ft\.?.*$', caseSensitive: false),
+      RegExp(r'\s*feat\.?.*$', caseSensitive: false),
+    ];
+    for (final reg in regexes) {
+      title = title.replaceAll(reg, '');
+    }
+    return title.replaceAll(RegExp(r'\s+'), ' ').trim();
+  }
+
+  /// Membersihkan nama artis dari channel YouTube (mis. `Oasis - Topic` -> `Oasis`).
+  static String cleanArtist(String raw) {
+    var artist = raw;
+    artist = artist.replaceAll(RegExp(r'\s*-\s*topic$', caseSensitive: false), '');
+    artist = artist.replaceAll(RegExp(r'vevo$', caseSensitive: false), '');
+    return artist.trim();
+  }
+
+  /// Membedah judul video YouTube menjadi nama artis dan judul lagu bersih.
+  static ({String artist, String title}) parseYouTubeMetadata(String rawTitle, String author) {
+    final cleanedAuthor = cleanArtist(author);
+    if (rawTitle.contains(' - ')) {
+      final parts = rawTitle.split(' - ');
+      final possibleArtist = cleanArtist(parts[0].trim());
+      final possibleTitle = cleanTitle(parts.sublist(1).join(' - ').trim());
+      return (
+        artist: possibleArtist.isNotEmpty ? possibleArtist : cleanedAuthor,
+        title: possibleTitle.isNotEmpty ? possibleTitle : cleanTitle(rawTitle),
+      );
+    }
+    return (
+      artist: cleanedAuthor.isNotEmpty ? cleanedAuthor : 'YouTube',
+      title: cleanTitle(rawTitle),
+    );
+  }
+
   String toJson() => json.encode(toMap());
 
   factory TrackModel.fromJson(String source) =>

@@ -43,7 +43,7 @@ class PlayerProvider with ChangeNotifier {
   static const int _maxQueueLength = 300;
 
   /// Batas waktu menunggu sumber audio selesai dimuat.
-  static const Duration _loadTimeout = Duration(seconds: 30);
+  static const Duration _loadTimeout = Duration(seconds: 12);
 
   TrackModel? _currentTrack;
   List<TrackModel> _queue = [];
@@ -199,36 +199,52 @@ class PlayerProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  String? _retryTrackId;
+  int _retryAttempts = 0;
+
   /// Memutar ulang lagu yang sedang aktif.
   ///
   /// Dipakai oleh tombol "Coba lagi" ketika pemuatan stream gagal.
   Future<void> retryCurrentTrack() async {
     final track = _currentTrack;
     if (track == null) return;
-    await playTrack(track, queue: _queue, initialPosition: _position);
+    _retryAttempts = 0;
+    await playTrack(
+      track,
+      queue: _queue,
+      initialPosition: _position,
+      explicitIndex: _currentIndex >= 0 ? _currentIndex : null,
+      forceStreamRefresh: true,
+    );
   }
 
   /// Kontainer yang dipakai untuk stream [track].
-  ///
-  /// `mp4` (AAC) dipilih sebagai cadangan ketika stream utama (Opus/WebM)
-  /// gagal dimuat atau tidak bisa didekode perangkat.
   String? _preferredContainerFor(TrackModel track) {
     return _mp4FallbackTrackId == track.id ? 'mp4' : null;
   }
 
-  /// Mencoba memutar ulang [track] dengan stream MP4/AAC.
+  /// Mencoba memulihkan pemutaran [track] secara otomatis bila terjadi kendala stream.
   ///
-  /// Dipanggil sekali saja untuk setiap lagu, sehingga perangkat yang
-  /// memang tidak mendukung format tertentu tidak menyebabkan pengulangan
-  /// tanpa henti.
-  ///
-  /// Mengembalikan true bila pengulangan sudah dijadwalkan, sehingga pesan
-  /// error tidak perlu ditampilkan (percobaan berikutnya yang akan
-  /// memberi tahu hasilnya).
+  /// Dibatasi maksimal 2 kali percobaan per lagu untuk mencegah pengulangan
+  /// tanpa henti bila koneksi internet benar-benar terputus.
   bool _scheduleMp4Fallback(TrackModel track, {Duration? resumePosition}) {
-    if (_mp4FallbackTrackId == track.id) return false;
+    if (_retryTrackId != track.id) {
+      _retryTrackId = track.id;
+      _retryAttempts = 0;
+    }
+    if (_retryAttempts >= 2) {
+      return false;
+    }
+    _retryAttempts++;
     _mp4FallbackTrackId = track.id;
-    unawaited(playTrack(track, queue: _queue, initialPosition: resumePosition));
+    final currentIdx = _currentIndex;
+    unawaited(playTrack(
+      track,
+      queue: _queue,
+      initialPosition: resumePosition,
+      explicitIndex: currentIdx >= 0 ? currentIdx : null,
+      forceStreamRefresh: true,
+    ));
     return true;
   }
 
@@ -493,6 +509,8 @@ class PlayerProvider with ChangeNotifier {
     TrackModel track, {
     List<TrackModel>? queue,
     Duration? initialPosition,
+    int? explicitIndex,
+    bool forceStreamRefresh = false,
   }) {
     final token = ++_playToken;
     final completer = Completer<void>();
@@ -505,6 +523,8 @@ class PlayerProvider with ChangeNotifier {
           queue: queue,
           token: token,
           initialPosition: initialPosition,
+          explicitIndex: explicitIndex,
+          forceStreamRefresh: forceStreamRefresh,
         );
       } catch (e, st) {
         debugPrint('[Player] playTrack gagal: $e\n$st');
@@ -524,14 +544,28 @@ class PlayerProvider with ChangeNotifier {
     List<TrackModel>? queue,
     required int token,
     Duration? initialPosition,
+    int? explicitIndex,
+    bool forceStreamRefresh = false,
   }) async {
     if (queue != null && queue.isNotEmpty) {
       _queue = List.from(queue);
-      _currentIndex = _queue.indexWhere((t) => t.id == track.id);
-      if (_currentIndex == -1) {
-        _queue.insert(0, track);
-        _currentIndex = 0;
+      if (explicitIndex != null &&
+          explicitIndex >= 0 &&
+          explicitIndex < _queue.length &&
+          _queue[explicitIndex].id == track.id) {
+        _currentIndex = explicitIndex;
+      } else {
+        _currentIndex = _queue.indexWhere((t) => t.id == track.id);
+        if (_currentIndex == -1) {
+          _queue.insert(0, track);
+          _currentIndex = 0;
+        }
       }
+    } else if (explicitIndex != null &&
+        explicitIndex >= 0 &&
+        explicitIndex < _queue.length &&
+        _queue[explicitIndex].id == track.id) {
+      _currentIndex = explicitIndex;
     } else if (!_queue.any((t) => t.id == track.id)) {
       _queue.add(track);
       _currentIndex = _queue.length - 1;
@@ -579,7 +613,11 @@ class PlayerProvider with ChangeNotifier {
           AudioSource.file(track.localPath!, tag: mediaItem),
         );
       } else {
-        await _setStreamSource(track, mediaItem);
+        await _setStreamSource(
+          track,
+          mediaItem,
+          forceRefresh: forceStreamRefresh,
+        );
       }
 
       if (token != _playToken) return;
@@ -602,10 +640,19 @@ class PlayerProvider with ChangeNotifier {
       unawaited(_player.play().catchError((Object e, StackTrace st) {
         debugPrint('[Player] play gagal: $e');
       }));
+
+      // Preload lagu berikutnya di antrean secara diam-diam agar transisi instan
+      if (_currentIndex + 1 < _queue.length) {
+        unawaited(_musicService.preloadTrackStream(
+          _queue[_currentIndex + 1],
+          quality: _audioQuality,
+        ));
+      }
     } catch (e, st) {
       debugPrint('[Player] pemutaran gagal: $e\n$st');
       if (token == _playToken) {
-        if (!_scheduleMp4Fallback(track)) {
+        final currentPos = _position;
+        if (!_scheduleMp4Fallback(track, resumePosition: currentPos)) {
           _setError('Gagal memutar "${track.title}".');
         }
       }
@@ -619,22 +666,40 @@ class PlayerProvider with ChangeNotifier {
 
   /// Mengatur sumber audio streaming.
   ///
-  /// CDN YouTube menolak permintaan HTTP tanpa header `Range` terbatasi, jadi
-  /// sumber audio diambil lewat [YouTubeStreamSource] yang menarik data per
-  /// potongan dan otomatis me-refresh URL bila link sudah kedaluwarsa.
+  /// Memprioritaskan direct progressive stream (tag 18 MP4) yang didukung penuh
+  /// oleh ExoPlayer tanpa jeda proxy dan bebas dari pemblokiran HTTP 403 CDN.
   Future<void> _setStreamSource(
     TrackModel track,
-    MediaItem mediaItem,
-  ) async {
-    final source = YouTubeStreamSource(
-      track: track,
+    MediaItem mediaItem, {
+    bool forceRefresh = false,
+  }) async {
+    final resolved = await _musicService.resolveAudioStreamInfo(
+      track,
       quality: _audioQuality,
-      musicService: _musicService,
+      forceRefresh: forceRefresh,
       preferredContainer: _preferredContainerFor(track),
-      tag: mediaItem,
+      preferProgressive: true,
     );
 
-    await _player.setAudioSource(source);
+    if (resolved.isDirectProgressive) {
+      final source = AudioSource.uri(
+        Uri.parse(resolved.url),
+        headers: const {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        },
+        tag: mediaItem,
+      );
+      await _player.setAudioSource(source);
+    } else {
+      final source = YouTubeStreamSource(
+        track: track,
+        quality: _audioQuality,
+        musicService: _musicService,
+        preferredContainer: _preferredContainerFor(track),
+        tag: mediaItem,
+      );
+      await _player.setAudioSource(source);
+    }
   }
 
   Future<void> _fetchLyrics(TrackModel track) async {
@@ -680,15 +745,16 @@ class PlayerProvider with ChangeNotifier {
     if (_isShuffle && _queue.length > 1) {
       final nextIdx = _randomShuffleIndex();
       if (nextIdx >= 0) {
-        await playTrack(_queue[nextIdx], queue: _queue);
+        await playTrack(_queue[nextIdx], queue: _queue, explicitIndex: nextIdx);
         return;
       }
     }
 
     if (_currentIndex + 1 < _queue.length) {
-      await playTrack(_queue[_currentIndex + 1], queue: _queue);
+      final nextIdx = _currentIndex + 1;
+      await playTrack(_queue[nextIdx], queue: _queue, explicitIndex: nextIdx);
     } else if (_loopMode == LoopMode.all) {
-      await playTrack(_queue[0], queue: _queue);
+      await playTrack(_queue[0], queue: _queue, explicitIndex: 0);
     } else if (_autoplayEnabled && _currentTrack != null && !_isFetchingAutoplay) {
       _isFetchingAutoplay = true;
       try {
@@ -727,7 +793,8 @@ class PlayerProvider with ChangeNotifier {
           _trimQueue();
           notifyListeners();
           if (_currentIndex + 1 < _queue.length) {
-            await playTrack(_queue[_currentIndex + 1], queue: _queue);
+            final nextIdx = _currentIndex + 1;
+            await playTrack(_queue[nextIdx], queue: _queue, explicitIndex: nextIdx);
             return;
           }
         }
@@ -780,7 +847,8 @@ class PlayerProvider with ChangeNotifier {
     }
 
     if (_currentIndex - 1 >= 0) {
-      await playTrack(_queue[_currentIndex - 1], queue: _queue);
+      final prevIdx = _currentIndex - 1;
+      await playTrack(_queue[prevIdx], queue: _queue, explicitIndex: prevIdx);
     } else {
       await seek(Duration.zero);
     }
