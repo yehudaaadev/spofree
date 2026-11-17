@@ -180,7 +180,7 @@ class _PlayerSheetState extends State<PlayerSheet> {
                       IconButton(
                         icon: Icon(
                           _isVinylMode ? Icons.album : Icons.album_outlined,
-                          color: _isVinylMode ? AppTheme.primaryGreen : AppTheme.textPrimary,
+                          color: _isVinylMode ? AppTheme.primaryRose : AppTheme.textPrimary,
                           size: 22,
                         ),
                         tooltip: _isVinylMode ? 'Mode Cover Standar' : 'Mode Piringan Hitam (Vinyl)',
@@ -192,7 +192,7 @@ class _PlayerSheetState extends State<PlayerSheet> {
                       IconButton(
                         icon: Icon(
                           player.hasActiveSleepTimer ? Icons.timer : Icons.timer_outlined,
-                          color: player.hasActiveSleepTimer ? AppTheme.primaryGreen : AppTheme.textPrimary,
+                          color: player.hasActiveSleepTimer ? AppTheme.primaryRose : AppTheme.textPrimary,
                           size: 22,
                         ),
                         tooltip: 'Sleep Timer',
@@ -206,7 +206,7 @@ class _PlayerSheetState extends State<PlayerSheet> {
                       IconButton(
                         icon: Icon(
                           Icons.equalizer,
-                          color: player.equalizerEnabled ? AppTheme.primaryGreen : AppTheme.textPrimary,
+                          color: player.equalizerEnabled ? AppTheme.primaryRose : AppTheme.textPrimary,
                           size: 22,
                         ),
                         tooltip: 'Equalizer & Efek',
@@ -273,7 +273,7 @@ class _PlayerSheetState extends State<PlayerSheet> {
                   IconButton(
                     icon: Icon(
                       isLiked ? Icons.favorite : Icons.favorite_border,
-                      color: isLiked ? AppTheme.primaryGreen : AppTheme.textSecondary,
+                      color: isLiked ? AppTheme.primaryRose : AppTheme.textSecondary,
                       size: 28,
                     ),
                     onPressed: () {
@@ -292,14 +292,14 @@ class _PlayerSheetState extends State<PlayerSheet> {
                     margin: const EdgeInsets.only(bottom: 6),
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF282828),
+                      color: AppTheme.card,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppTheme.primaryGreen.withValues(alpha: 0.5)),
+                      border: Border.all(color: AppTheme.primaryRose.withValues(alpha: 0.5)),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.fast_forward, color: AppTheme.primaryGreen, size: 14),
+                        const Icon(Icons.fast_forward, color: AppTheme.primaryRose, size: 14),
                         const SizedBox(width: 6),
                         Text(
                           player.skippedSegmentNotice!,
@@ -363,7 +363,7 @@ class _PlayerSheetState extends State<PlayerSheet> {
                     icon: Icon(
                       Icons.shuffle,
                       size: 24,
-                      color: player.isShuffle ? AppTheme.primaryGreen : AppTheme.textSecondary,
+                      color: player.isShuffle ? AppTheme.primaryRose : AppTheme.textSecondary,
                     ),
                     onPressed: () {
                       HapticFeedback.selectionClick();
@@ -441,7 +441,7 @@ class _PlayerSheetState extends State<PlayerSheet> {
                           : Icons.repeat,
                       size: 24,
                       color: player.loopMode != LoopMode.off
-                          ? AppTheme.primaryGreen
+                          ? AppTheme.primaryRose
                           : AppTheme.textSecondary,
                     ),
                     onPressed: () {
@@ -467,7 +467,7 @@ class _PlayerSheetState extends State<PlayerSheet> {
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
                             value: player.downloadProgress > 0 ? player.downloadProgress : null,
-                            color: AppTheme.primaryGreen,
+                            color: AppTheme.primaryRose,
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -480,11 +480,11 @@ class _PlayerSheetState extends State<PlayerSheet> {
                   else if (isDownloaded)
                     Row(
                       children: [
-                        const Icon(Icons.check_circle, color: AppTheme.primaryGreen, size: 20),
+                        const Icon(Icons.check_circle, color: AppTheme.primaryRose, size: 20),
                         const SizedBox(width: 6),
                         const Text(
                           'Offline',
-                          style: TextStyle(fontSize: 12, color: AppTheme.primaryGreen, fontWeight: FontWeight.bold),
+                          style: TextStyle(fontSize: 12, color: AppTheme.primaryRose, fontWeight: FontWeight.bold),
                         ),
                         IconButton(
                           icon: const Icon(Icons.drive_file_move_outlined, color: Colors.white, size: 20),
@@ -511,12 +511,12 @@ class _PlayerSheetState extends State<PlayerSheet> {
                         icon: Icon(
                           _showLyricsView ? Icons.image : Icons.lyrics,
                           size: 16,
-                          color: _showLyricsView ? AppTheme.primaryGreen : AppTheme.textSecondary,
+                          color: _showLyricsView ? AppTheme.primaryRose : AppTheme.textSecondary,
                         ),
                         label: Text(
                           _showLyricsView ? 'Tutup Lirik' : 'Lirik',
                           style: TextStyle(
-                            color: _showLyricsView ? AppTheme.primaryGreen : AppTheme.textSecondary,
+                            color: _showLyricsView ? AppTheme.primaryRose : AppTheme.textSecondary,
                             fontSize: 13,
                           ),
                         ),
@@ -625,7 +625,7 @@ class _PlayerSheetState extends State<PlayerSheet> {
   Widget _buildLyricsView(PlayerProvider player, int currentLyricIdx, TrackModel track) {
     if (player.isLoadingLyrics) {
       return const Center(
-        child: CircularProgressIndicator(color: AppTheme.primaryGreen),
+        child: CircularProgressIndicator(color: AppTheme.primaryRose),
       );
     }
 
@@ -639,97 +639,187 @@ class _PlayerSheetState extends State<PlayerSheet> {
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFF181818),
+        color: AppTheme.card,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF282828), width: 1),
+        border: Border.all(color: AppTheme.divider, width: 0.8),
       ),
-      child: ShaderMask(
-        shaderCallback: (Rect bounds) {
-          return const LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Colors.transparent,
-              Colors.white,
-              Colors.white,
-              Colors.transparent,
-            ],
-            stops: [0.0, 0.08, 0.92, 1.0],
-          ).createShader(bounds);
-        },
-        blendMode: BlendMode.dstIn,
-        child: ListView.builder(
-          controller: _lyricsScrollController,
-          itemCount: player.lyrics.length,
-          itemBuilder: (context, index) {
-            final line = player.lyrics[index];
-            final isCurrent = index == currentLyricIdx;
-
-            return GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () {
-                HapticFeedback.selectionClick();
-                player.seek(line.timestamp);
-              },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 250),
-                curve: Curves.easeOutCubic,
-                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  color: isCurrent
-                      ? _ambientColor.withValues(alpha: 0.25)
-                      : Colors.transparent,
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
+      child: Column(
+        children: [
+          // Header Petunjuk Tap-to-Seek
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
                   children: [
-                    Expanded(
-                      child: AnimatedDefaultTextStyle(
-                        duration: const Duration(milliseconds: 250),
-                        curve: Curves.easeOutCubic,
-                        style: TextStyle(
-                          fontFamily: GoogleFonts.plusJakartaSans().fontFamily,
-                          fontSize: isCurrent ? 22 : 16,
-                          fontWeight: isCurrent ? FontWeight.w800 : FontWeight.w600,
-                          color: isCurrent
-                              ? Colors.white
-                              : Colors.white.withValues(alpha: 0.35),
-                          height: 1.35,
-                          shadows: isCurrent
-                              ? [
-                                  Shadow(
-                                    color: _ambientColor.withValues(alpha: 0.8),
-                                    blurRadius: 20,
-                                  ),
-                                ]
-                              : null,
-                        ),
-                        child: Text(line.text),
+                    Icon(
+                      Icons.touch_app_outlined,
+                      size: 13,
+                      color: AppTheme.primaryRose.withValues(alpha: 0.9),
+                    ),
+                    const SizedBox(width: 5),
+                    const Text(
+                      'Ketuk lirik untuk melompat',
+                      style: TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
-                    if (isCurrent)
-                      IconButton(
-                        icon: const Icon(Icons.share_outlined, size: 18, color: AppTheme.primaryGreen),
-                        tooltip: 'Bagikan Kutipan Lirik',
-                        onPressed: () {
-                          HapticFeedback.selectionClick();
-                          LyricShareDialog.show(
-                            context,
-                            track: track,
-                            lyricText: line.text,
-                            ambientColor: _ambientColor,
-                          );
-                        },
-                      ),
                   ],
                 ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryRose.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: const Text(
+                    'Lirik Sinkron',
+                    style: TextStyle(
+                      color: AppTheme.primaryRoseLight,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(color: AppTheme.divider, height: 1),
+          const SizedBox(height: 4),
+
+          // Daftar Lirik Interaktif
+          Expanded(
+            child: ShaderMask(
+              shaderCallback: (Rect bounds) {
+                return const LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    Colors.white,
+                    Colors.white,
+                    Colors.transparent,
+                  ],
+                  stops: [0.0, 0.06, 0.94, 1.0],
+                ).createShader(bounds);
+              },
+              blendMode: BlendMode.dstIn,
+              child: ListView.builder(
+                controller: _lyricsScrollController,
+                itemCount: player.lyrics.length,
+                itemBuilder: (context, index) {
+                  final line = player.lyrics[index];
+                  final isCurrent = index == currentLyricIdx;
+
+                  final minutes = line.timestamp.inMinutes.remainder(60).toString().padLeft(2, '0');
+                  final seconds = line.timestamp.inSeconds.remainder(60).toString().padLeft(2, '0');
+                  final timeFormatted = '$minutes:$seconds';
+
+                  return GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      player.seek(line.timestamp);
+                      if (!player.isPlaying) {
+                        player.resume();
+                      }
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 250),
+                      curve: Curves.easeOutCubic,
+                      padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 8),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(10),
+                        color: isCurrent
+                            ? _ambientColor.withValues(alpha: 0.28)
+                            : Colors.transparent,
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          // Timestamp badge
+                          if (isCurrent)
+                            Container(
+                              margin: const EdgeInsets.only(right: 8),
+                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppTheme.primaryRose.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                timeFormatted,
+                                style: const TextStyle(
+                                  color: AppTheme.primaryRoseLight,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            )
+                          else
+                            Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: Text(
+                                timeFormatted,
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.22),
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ),
+
+                          // Lyric text
+                          Expanded(
+                            child: AnimatedDefaultTextStyle(
+                              duration: const Duration(milliseconds: 250),
+                              curve: Curves.easeOutCubic,
+                              style: TextStyle(
+                                fontFamily: GoogleFonts.plusJakartaSans().fontFamily,
+                                fontSize: isCurrent ? 21 : 15,
+                                fontWeight: isCurrent ? FontWeight.w800 : FontWeight.w600,
+                                color: isCurrent
+                                    ? Colors.white
+                                    : Colors.white.withValues(alpha: 0.35),
+                                height: 1.35,
+                                shadows: isCurrent
+                                    ? [
+                                        Shadow(
+                                          color: _ambientColor.withValues(alpha: 0.8),
+                                          blurRadius: 20,
+                                        ),
+                                      ]
+                                    : null,
+                              ),
+                              child: Text(line.text),
+                            ),
+                          ),
+                          if (isCurrent)
+                            IconButton(
+                              icon: const Icon(Icons.share_outlined, size: 18, color: AppTheme.primaryRose),
+                              tooltip: 'Bagikan Kutipan Lirik',
+                              onPressed: () {
+                                HapticFeedback.selectionClick();
+                                LyricShareDialog.show(
+                                  context,
+                                  track: track,
+                                  lyricText: line.text,
+                                  ambientColor: _ambientColor,
+                                );
+                              },
+                            ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
               ),
-            );
-          },
-        ),
+            ),
+          ),
+        ],
       ),
     );
   }
