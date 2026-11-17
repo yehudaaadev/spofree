@@ -127,13 +127,18 @@ class _SearchTabState extends State<SearchTab> {
     });
 
     _saveSearchQuery(query);
-    final res = await _musicService.searchMusic(query);
-
-    if (mounted && _currentQuery == query) {
-      setState(() {
-        _results = res;
-        _isLoading = false;
-      });
+    List<TrackModel> res = [];
+    try {
+      res = await _musicService.searchMusic(query);
+    } catch (e) {
+      debugPrint('[SearchTab] pencarian gagal untuk "$query": $e');
+    } finally {
+      if (mounted && _currentQuery == query) {
+        setState(() {
+          _results = res;
+          _isLoading = false;
+        });
+      }
     }
   }
 

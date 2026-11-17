@@ -51,4 +51,30 @@ Baris dua
       expect(lines[1].timestamp, const Duration(seconds: 4));
     });
   });
+
+  group('LyricsService.sanitizeQueryTitle', () {
+    test('mempertahankan kata dengan tanda hubung', () {
+      expect(LyricsService.sanitizeQueryTitle('Spider-Man'), 'Spider-Man');
+      expect(LyricsService.sanitizeQueryTitle('Anti-Hero'), 'Anti-Hero');
+      expect(LyricsService.sanitizeQueryTitle('Semi-Charmed Life'), 'Semi-Charmed Life');
+    });
+
+    test('membuang metadata dalam kurung dan siku', () {
+      expect(
+        LyricsService.sanitizeQueryTitle('Wonderwall (Official Video)'),
+        'Wonderwall',
+      );
+      expect(
+        LyricsService.sanitizeQueryTitle('Song Title [Remastered 2020]'),
+        'Song Title',
+      );
+    });
+
+    test('memotong embel-embel judul yang dipisahkan spasi tanda-hubung', () {
+      expect(
+        LyricsService.sanitizeQueryTitle('Champagne Supernova - Remastered'),
+        'Champagne Supernova',
+      );
+    });
+  });
 }

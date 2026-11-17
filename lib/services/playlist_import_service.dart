@@ -70,12 +70,18 @@ class PlaylistImportService {
     final List<TrackModel> tracks = [];
     final stream = _yt.playlists.getVideos(playlistId);
 
-    await for (final video in stream) {
+    // Batasi hingga 200 lagu untuk menjaga efisiensi memori dan responsivitas UI.
+    await for (final video in stream.take(200)) {
+      final cleanMeta = TrackModel.parseYouTubeMetadata(
+        video.title,
+        video.author,
+      );
+
       tracks.add(
         TrackModel(
           id: 'yt_${video.id.value}',
-          title: video.title,
-          artist: video.author,
+          title: cleanMeta.title,
+          artist: cleanMeta.artist,
           album: playlistTitle,
           artworkUrl: video.thumbnails.highResUrl,
           durationMs: video.duration?.inMilliseconds ?? 0,
@@ -108,7 +114,17 @@ class PlaylistImportService {
     }
 
     final embedUrl = 'https://open.spotify.com/embed/$type/$id';
-    final response = await _dio.get(embedUrl);
+    final Response<dynamic> response;
+    try {
+      response = await _dio.get(embedUrl);
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        throw Exception('Playlist atau album Spotify tidak ditemukan.');
+      }
+      throw Exception('Gagal menghubungi Spotify. Periksa koneksi internet.');
+    } catch (_) {
+      throw Exception('Gagal memuat tautan Spotify.');
+    }
     final html = response.data.toString();
 
     final nextDataMatch = RegExp(r'<script id="__NEXT_DATA__" type="application\/json">(.*?)<\/script>').firstMatch(html);

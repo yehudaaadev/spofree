@@ -157,12 +157,18 @@ class SponsorBlockService {
 
         // Urutkan berdasarkan waktu mulai
         segments.sort((a, b) => a.start.compareTo(b.start));
+        if (_cache.length >= 200) {
+          _cache.remove(_cache.keys.first);
+        }
         _cache[cleanId] = segments;
         return segments;
       }
     } on DioException catch (e) {
       if (e.response?.statusCode == 404) {
         // 404 artinya tidak ada segmen untuk video ini di database SponsorBlock
+        if (_cache.length >= 200) {
+          _cache.remove(_cache.keys.first);
+        }
         _cache[cleanId] = [];
         return [];
       }

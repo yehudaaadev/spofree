@@ -502,6 +502,9 @@ class MusicService {
         videoId = (bestMatch ?? searchResults.first).id.value;
       }
 
+      if (_videoIdCache.length >= 200) {
+        _videoIdCache.remove(_videoIdCache.keys.first);
+      }
       _videoIdCache[track.id] = videoId;
     }
 
@@ -545,6 +548,9 @@ class MusicService {
     }
 
     final streamUrl = selected.url.toString();
+    if (_streamUrlCache.length >= 200) {
+      _streamUrlCache.remove(_streamUrlCache.keys.first);
+    }
     _streamUrlCache[cacheKey] = _StreamCacheEntry(streamUrl, DateTime.now());
     return _describeStream(
       streamUrl,

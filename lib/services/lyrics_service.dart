@@ -24,12 +24,22 @@ class LyricsService {
               receiveTimeout: const Duration(seconds: 8),
             ));
 
+  /// Membersihkan judul lagu untuk pencarian lirik tanpa memotong kata
+  /// yang memiliki tanda hubung sah (mis. "Spider-Man", "Anti-Hero").
+  static String sanitizeQueryTitle(String title) {
+    var cleanTitle = title.replaceAll(RegExp(r'\s*[\(\[].*?[\)\]]'), '').trim();
+    if (cleanTitle.contains(RegExp(r'\s+-\s+'))) {
+      cleanTitle = cleanTitle.split(RegExp(r'\s+-\s+')).first.trim();
+    }
+    return cleanTitle;
+  }
+
   Future<List<LyricsLine>> fetchLyrics({
     required String title,
     required String artist,
   }) async {
     try {
-      final cleanTitle = title.split('(').first.split('-').first.trim();
+      final cleanTitle = sanitizeQueryTitle(title);
       final cleanArtist = artist.split(',').first.split('&').first.trim();
 
       final response = await _dio.get(

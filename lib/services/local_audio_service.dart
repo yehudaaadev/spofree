@@ -53,9 +53,7 @@ class LocalAudioService {
       if (!await dir.exists()) continue;
 
       try {
-        final List<FileSystemEntity> entities =
-            dir.listSync(recursive: true, followLinks: false);
-        for (final entity in entities) {
+        await for (final entity in dir.list(recursive: true, followLinks: false)) {
           if (entity is! File) continue;
 
           final path = entity.path;

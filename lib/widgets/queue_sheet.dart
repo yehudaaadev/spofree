@@ -85,6 +85,11 @@ class QueueSheet extends StatelessWidget {
                               width: 44,
                               height: 44,
                               fit: BoxFit.cover,
+                              placeholder: (_, _) => Container(color: AppTheme.card),
+                              errorWidget: (_, _, _) => Container(
+                                color: AppTheme.card,
+                                child: const Icon(Icons.music_note, size: 20, color: AppTheme.textSecondary),
+                              ),
                             )
                           : Container(width: 44, height: 44, color: AppTheme.card),
                     ),
@@ -156,6 +161,11 @@ class QueueSheet extends StatelessWidget {
                                   width: 40,
                                   height: 40,
                                   fit: BoxFit.cover,
+                                  placeholder: (_, _) => Container(color: AppTheme.card),
+                                  errorWidget: (_, _, _) => Container(
+                                    color: AppTheme.card,
+                                    child: const Icon(Icons.music_note, size: 18, color: AppTheme.textSecondary),
+                                  ),
                                 )
                               : Container(width: 40, height: 40, color: AppTheme.card),
                         ),
@@ -185,7 +195,7 @@ class QueueSheet extends StatelessWidget {
                             const Icon(Icons.drag_handle, color: AppTheme.textSecondary, size: 20),
                           ],
                         ),
-                        onTap: () => player.playTrack(track, queue: queue),
+                        onTap: () => player.playTrack(track, queue: queue, explicitIndex: index),
                       );
                     },
                   ),

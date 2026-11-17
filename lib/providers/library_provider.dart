@@ -230,7 +230,10 @@ class LibraryProvider with ChangeNotifier {
       _bulkCurrentIndex = i + 1;
       final track = toDownload[i];
       try {
-        final streamUrl = await _musicService.resolveAudioStream(track);
+        final streamUrl = await _musicService.resolveAudioStream(
+          track,
+          quality: _audioQuality,
+        );
         await _downloadService.downloadTrack(
           track: track,
           audioStreamUrl: streamUrl,

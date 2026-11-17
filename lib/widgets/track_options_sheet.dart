@@ -71,6 +71,13 @@ class TrackOptionsSheet extends StatelessWidget {
                         width: 48,
                         height: 48,
                         fit: BoxFit.cover,
+                        placeholder: (_, _) => Container(color: const Color(0xFF282828)),
+                        errorWidget: (_, _, _) => Container(
+                          width: 48,
+                          height: 48,
+                          color: const Color(0xFF282828),
+                          child: const Icon(Icons.music_note, color: Colors.white38, size: 24),
+                        ),
                       )
                     : Container(width: 48, height: 48, color: const Color(0xFF282828)),
               ),

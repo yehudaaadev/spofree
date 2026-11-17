@@ -39,18 +39,22 @@ class _HomeTabState extends State<HomeTab> {
 
   Future<void> _loadCategoryTracks(String category) async {
     setState(() => _isLoading = true);
-    List<TrackModel> tracks;
-    if (category == 'Semua') {
-      tracks = await _musicService.getChartTracks();
-    } else {
-      tracks = await _musicService.searchDeezer(category);
-    }
-
-    if (mounted) {
-      setState(() {
-        _charts = tracks;
-        _isLoading = false;
-      });
+    List<TrackModel> tracks = [];
+    try {
+      if (category == 'Semua') {
+        tracks = await _musicService.getChartTracks();
+      } else {
+        tracks = await _musicService.searchDeezer(category);
+      }
+    } catch (e) {
+      debugPrint('[HomeTab] gagal memuat kategori "$category": $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _charts = tracks;
+          _isLoading = false;
+        });
+      }
     }
   }
 

@@ -737,7 +737,12 @@ class PlayerProvider with ChangeNotifier {
     }
   }
 
-  Future<void> seek(Duration pos) async => await _player.seek(pos);
+  Future<void> seek(Duration pos) async {
+    if (_lastSkippedUntil != null && pos < _lastSkippedUntil!) {
+      _lastSkippedUntil = null;
+    }
+    await _player.seek(pos);
+  }
 
   Future<void> next() async {
     if (_queue.isEmpty) return;
