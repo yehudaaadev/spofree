@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import '../models/track_model.dart';
 import '../providers/library_provider.dart';
 import '../providers/player_provider.dart';
+import '../screens/artist_screen.dart';
 import '../theme/app_theme.dart';
 import 'equalizer_sheet.dart';
 import 'export_audio_dialog.dart';
@@ -258,13 +259,25 @@ class _PlayerSheetState extends State<PlayerSheet> {
                           ),
                         ),
                         const SizedBox(height: 4),
-                        Text(
-                          track.artist,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 15,
-                            color: AppTheme.textSecondary,
+                        GestureDetector(
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            Navigator.pop(context);
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ArtistScreen(artistName: track.artist),
+                              ),
+                            );
+                          },
+                          child: Text(
+                            track.artist,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              color: AppTheme.textSecondary,
+                            ),
                           ),
                         ),
                       ],

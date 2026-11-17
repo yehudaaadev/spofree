@@ -38,6 +38,7 @@
 29. **Interactive Tap-to-Seek Synced Lyrics**: Re-architected `_buildLyricsView` in `PlayerSheet` with per-line timestamp badges, instant tap-to-seek with playback auto-resume, subtle hint header, and complete Rose & Obsidian styling.
 30. **Flexible Sorting & Filtering in Library Tab**: Implemented dynamic collection sorting modal and engine in `LibraryTab` for Liked and Offline tracks with real-time sorting by *Terbaru Ditambahkan*, *Judul Lagu (A - Z)*, *Nama Artis (A - Z)*, and *Durasi Lagu*.
 31. **Transparent Smart LRU Audio Disk Cache**: Integrated `AudioCacheService` (300 MB bounded capacity) automatically caching progressive audio streams into local temp storage. Replaying songs loads directly from disk via `AudioSource.file`, eliminating buffer latency and conserving 100% internet quota.
+32. **Dedicated Artist Profile & Discography Screen**: Implemented `ArtistScreen` with Deezer artist metadata API (`getArtistProfile`). Features full-bleed header artwork with gradient shading, monthly listener stats, verified artist badge, and ranked top 25 popular songs list. Accessible by tapping artist name in `PlayerSheet` and `SearchTab`.
 
 ## Verification Status
 - Version: 1.1.0 (Build 6)

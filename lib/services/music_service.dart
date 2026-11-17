@@ -248,6 +248,48 @@ class MusicService {
     return [];
   }
 
+  /// Mengambil profil artis lengkap beserta daftar lagu terpopuler dari Deezer.
+  Future<ArtistProfile?> getArtistProfile(String artistName) async {
+    try {
+      final cleanName = TrackModel.cleanArtist(artistName).split(',').first.split('&').first.trim();
+      final res = await _dio.get(
+        'https://api.deezer.com/search/artist',
+        queryParameters: {'q': cleanName, 'limit': 1},
+      );
+      final data = res.data is String ? json.decode(res.data) : res.data;
+      final artists = data['data'] as List<dynamic>? ?? [];
+      if (artists.isEmpty) return null;
+
+      final artistMap = artists.first as Map<String, dynamic>;
+      final int artistId = artistMap['id'] as int;
+      final String name = artistMap['name']?.toString() ?? artistName;
+      final String pictureUrl = artistMap['picture_xl']?.toString() ??
+          artistMap['picture_big']?.toString() ??
+          artistMap['picture_medium']?.toString() ??
+          '';
+      final int nbFan = artistMap['nb_fan'] is int ? artistMap['nb_fan'] as int : 0;
+
+      // Ambil Top 25 Lagu Terpopuler Artis
+      final topRes = await _dio.get('https://api.deezer.com/artist/$artistId/top?limit=25');
+      final topData = topRes.data is String ? json.decode(topRes.data) : topRes.data;
+      final topItems = topData['data'] as List<dynamic>? ?? [];
+      final topTracks = topItems
+          .map((item) => TrackModel.fromDeezer(item as Map<String, dynamic>))
+          .toList();
+
+      return ArtistProfile(
+        id: artistId,
+        name: name,
+        pictureUrl: pictureUrl,
+        fansCount: nbFan,
+        topTracks: topTracks,
+      );
+    } catch (e) {
+      debugPrint('[MusicService] gagal memuat profil artis "$artistName": $e');
+      return null;
+    }
+  }
+
   /// Pencarian musik hybrid berkecepatan tinggi yang menggabungkan katalog
   /// resmi Deezer dan YouTube Music / Topics.
   Future<List<TrackModel>> searchMusic(String query) async {
@@ -734,4 +776,21 @@ class MusicService {
     }
     return bestIndex;
   }
+}
+
+/// Model profil dan diskografi artis Deezer.
+class ArtistProfile {
+  final int id;
+  final String name;
+  final String pictureUrl;
+  final int fansCount;
+  final List<TrackModel> topTracks;
+
+  const ArtistProfile({
+    required this.id,
+    required this.name,
+    required this.pictureUrl,
+    required this.fansCount,
+    required this.topTracks,
+  });
 }

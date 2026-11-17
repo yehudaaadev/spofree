@@ -9,6 +9,7 @@ import '../providers/player_provider.dart';
 import '../services/music_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/track_options_sheet.dart';
+import 'artist_screen.dart';
 
 class _GenreCardData {
   final String title;
@@ -401,13 +402,24 @@ class _SearchTabState extends State<SearchTab> {
                             ),
                           ),
                           const SizedBox(height: 2),
-                          Text(
-                            'Lagu • ${track.artist}',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: AppTheme.textSecondary,
+                          GestureDetector(
+                            onTap: () {
+                              HapticFeedback.selectionClick();
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => ArtistScreen(artistName: track.artist),
+                                ),
+                              );
+                            },
+                            child: Text(
+                              'Lagu • ${track.artist}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppTheme.textSecondary,
+                              ),
                             ),
                           ),
                         ],
@@ -494,11 +506,22 @@ class _SearchTabState extends State<SearchTab> {
           color: AppTheme.textPrimary,
         ),
       ),
-      subtitle: Text(
-        '${track.artist} • ${track.formattedDuration}',
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+      subtitle: GestureDetector(
+        onTap: () {
+          HapticFeedback.selectionClick();
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ArtistScreen(artistName: track.artist),
+            ),
+          );
+        },
+        child: Text(
+          '${track.artist} • ${track.formattedDuration}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+        ),
       ),
       trailing: IconButton(
         icon: const Icon(Icons.more_vert, color: AppTheme.textSecondary, size: 20),
