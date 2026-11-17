@@ -1,6 +1,6 @@
 {
-  "versionCode": 3,
-  "versionName": "1.0.2",
-  "releaseNotes": "Integrasi SponsorBlock (skip intro/outro klip YouTube), antrean dua lapis Play Next, Stereo Balance, dan Backup Universal M3U/JSON.",
+  "versionCode": 4,
+  "versionName": "1.0.3",
+  "releaseNotes": "Peningkatan performa instan stream YouTube, perbaikan pencarian lagu, penanganan pemutaran stabil tanpa terputus, dan pemindai audio lokal asinkron.",
   "downloadUrl": "https://gitlab.com/davidyehudaaa/spotify-gratis/-/raw/main/apk/WaveMusic.apk?inline=false"
 }

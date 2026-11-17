@@ -31,7 +31,7 @@
 22. **Stereo Audio Balance**: Implemented Left/Right balance control (-1.0 to 1.0) with persistence.
 
 ## Verification Status
-- Version: 1.0.2 (Build 3)
+- Version: 1.0.3 (Build 4)
 - Static Analysis: `flutter analyze` passed (0 issues).
 - Unit Tests: `flutter test` passed (66/66 tests passing).
 - Build: Release split-per-ABI APKs generated in `apk/`.
