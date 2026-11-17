@@ -37,6 +37,7 @@
 28. **Interactive Swipe-to-Skip Gestures on Mini Player**: Implemented spring-based horizontal drag gestures with responsive cues and Rose Pink indicators in `MiniPlayer` to skip next/previous songs without opening the full player sheet.
 29. **Interactive Tap-to-Seek Synced Lyrics**: Re-architected `_buildLyricsView` in `PlayerSheet` with per-line timestamp badges, instant tap-to-seek with playback auto-resume, subtle hint header, and complete Rose & Obsidian styling.
 30. **Flexible Sorting & Filtering in Library Tab**: Implemented dynamic collection sorting modal and engine in `LibraryTab` for Liked and Offline tracks with real-time sorting by *Terbaru Ditambahkan*, *Judul Lagu (A - Z)*, *Nama Artis (A - Z)*, and *Durasi Lagu*.
+31. **Transparent Smart LRU Audio Disk Cache**: Integrated `AudioCacheService` (300 MB bounded capacity) automatically caching progressive audio streams into local temp storage. Replaying songs loads directly from disk via `AudioSource.file`, eliminating buffer latency and conserving 100% internet quota.
 
 ## Verification Status
 - Version: 1.1.0 (Build 6)

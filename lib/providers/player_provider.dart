@@ -10,6 +10,7 @@ import 'package:just_audio_background/just_audio_background.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/track_model.dart';
+import '../services/audio_cache_service.dart';
 import '../services/download_service.dart';
 import '../services/lyrics_service.dart';
 import '../services/music_service.dart';
@@ -608,9 +609,19 @@ class PlayerProvider with ChangeNotifier {
       final isLocal =
           track.localPath != null && await File(track.localPath!).exists();
 
+      File? cachedFile;
+      if (!isLocal) {
+        cachedFile = await AudioCacheService.instance.getCachedAudioFile(track.id);
+      }
+
       if (isLocal) {
         await _player.setAudioSource(
           AudioSource.file(track.localPath!, tag: mediaItem),
+        );
+      } else if (cachedFile != null) {
+        debugPrint('[Player] Memutar dari smart LRU cache: ${track.title}');
+        await _player.setAudioSource(
+          AudioSource.file(cachedFile.path, tag: mediaItem),
         );
       } else {
         await _setStreamSource(
@@ -682,6 +693,7 @@ class PlayerProvider with ChangeNotifier {
     );
 
     if (resolved.isDirectProgressive) {
+      unawaited(AudioCacheService.instance.cacheTrackFromUrl(track.id, resolved.url));
       final source = AudioSource.uri(
         Uri.parse(resolved.url),
         headers: const {

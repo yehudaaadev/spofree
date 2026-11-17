@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
@@ -5,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
 import '../models/track_model.dart';
+import 'audio_cache_service.dart';
 import 'youtube_client.dart';
 
 /// Entri cache URL stream beserta waktu penyimpanannya.
@@ -495,7 +497,10 @@ class MusicService {
   /// Memuat awal stream URL di background agar transisi lagu berikutnya instan.
   Future<void> preloadTrackStream(TrackModel track, {String quality = 'Maksimal'}) async {
     try {
-      await resolveAudioStreamInfo(track, quality: quality);
+      final resolved = await resolveAudioStreamInfo(track, quality: quality);
+      if (resolved.isDirectProgressive) {
+        unawaited(AudioCacheService.instance.cacheTrackFromUrl(track.id, resolved.url));
+      }
     } catch (_) {
       // Abaikan kegagalan preload di background.
     }
