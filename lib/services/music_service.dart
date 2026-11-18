@@ -362,52 +362,56 @@ class MusicService {
     return merged;
   }
 
-  /// Menghitung bonus popularitas organik dari YouTube & Deezer.
+  /// Menghitung bonus popularitas organik YouTube-First.
+  ///
+  /// YouTube organic ranking dijadikan jangkar utama relevansi karena Wave Music
+  /// memutar audio langsung dari YouTube. Deezer berfungsi sebagai pelengkap
+  /// metadata, bukan penentu peringkat.
   static int calculateAuthorityBonus(TrackModel track, {int? ytRank, int? deezerRank}) {
     int bonus = 0;
 
-    // 1. YouTube organic popularity decay (peringkat 0 adalah video views terbanyak/relevan)
+    // 1. YouTube organic authority (jangkar utama -- bobot tinggi)
     if (ytRank != null) {
       if (ytRank == 0) {
-        bonus += 50;
+        bonus += 85;
       } else if (ytRank == 1) {
-        bonus += 35;
+        bonus += 55;
       } else if (ytRank == 2) {
-        bonus += 25;
+        bonus += 38;
       } else if (ytRank == 3) {
-        bonus += 18;
+        bonus += 25;
       } else if (ytRank == 4) {
-        bonus += 12;
+        bonus += 18;
       } else if (ytRank <= 7) {
-        bonus += 8;
+        bonus += 10;
       }
     }
 
-    // 2. Deezer organic popularity decay
+    // 2. Deezer sebagai pelengkap metadata (bobot rendah)
     if (deezerRank != null) {
       if (deezerRank == 0) {
-        bonus += 40;
+        bonus += 20;
       } else if (deezerRank == 1) {
-        bonus += 25;
+        bonus += 12;
       } else if (deezerRank == 2) {
-        bonus += 15;
-      } else if (deezerRank <= 5) {
         bonus += 8;
+      } else if (deezerRank <= 5) {
+        bonus += 4;
       }
     }
 
-    // 3. Kesepakatan Kanonikal Ganda (muncul di peringkat atas kedua layanan)
-    if (ytRank != null && ytRank <= 3 && deezerRank != null && deezerRank <= 3) {
-      bonus += 60;
+    // 3. Konsensus ringan (hanya ketika kedua layanan sepakat, bonus kecil)
+    if (ytRank != null && ytRank <= 2 && deezerRank != null && deezerRank <= 2) {
+      bonus += 15;
     }
 
-    // 4. Deteksi artis/album resmi YouTube Topic / VEVO
+    // 4. Deteksi artis/album resmi YouTube Topic / VEVO / Official Artist Channel
     final albumLower = track.album.toLowerCase();
     final artistLower = track.artist.toLowerCase();
     if (albumLower.contains('topic') ||
         artistLower.contains('topic') ||
         artistLower.contains('vevo')) {
-      bonus += 25;
+      bonus += 30;
     }
 
     return bonus;
@@ -467,11 +471,17 @@ class MusicService {
           continue;
         }
 
-        // Filter video lirik amatir agar tidak mengotori antrean
-        if (!qLower.contains('lirik') && !qLower.contains('lyric') && !qLower.contains('letra') &&
-            (titleLower.contains('lyrics') || titleLower.contains('lirik') || titleLower.contains('letra'))) {
-          continue;
-        }
+        // Video lirik tetap diterima (soft filter) -- scoring akan menurunkan
+        // peringkatnya secara organik jika ada versi audio/official yang lebih baik.
+        // Hanya channel lirik amatir murni yang di-skip (channel yang namanya
+        // mengandung "lyrics" DAN bukan artis asli dari judul).
+        final isLyricsVideo = !qLower.contains('lirik') && !qLower.contains('lyric') && !qLower.contains('letra') &&
+            (titleLower.contains('lyrics') || titleLower.contains('lirik') || titleLower.contains('letra'));
+        final isLyricsChannel = authorLower.contains('lyrics') || authorLower.contains('lirik') ||
+            authorLower.contains('letra') || authorLower.contains('7clouds') ||
+            authorLower.contains('soundkream') || authorLower.contains('lost panda') ||
+            authorLower.contains('unique sound');
+        if (isLyricsVideo && isLyricsChannel) continue;
 
         final meta = TrackModel.parseYouTubeMetadata(video.title, video.author);
         tracks.add(TrackModel(
@@ -492,6 +502,9 @@ class MusicService {
   }
 
   /// Menilai kecocokan lagu terhadap query pencarian pengguna (fungsi murni).
+  ///
+  /// Menggunakan pendekatan YouTube-First: track dengan youtubeId dan artis
+  /// yang cocok mendapat keunggulan signifikan atas metadata-only Deezer.
   static int scoreTrack(TrackModel t, String query, {int authorityBonus = 0}) {
     int score = authorityBonus;
     final q = query.toLowerCase().trim();
@@ -499,36 +512,59 @@ class MusicService {
     final artist = t.artist.toLowerCase().trim();
     final tokens = q.split(RegExp(r'\s+')).where((s) => s.isNotEmpty).toList();
 
-    // Exact title match
+    // --- Title matching ---
     if (title == q) {
-      score += 35;
+      score += 40;
     } else if (title.startsWith(q)) {
-      score += 20;
+      score += 22;
     } else if (title.contains(q)) {
       score += 15;
     }
 
-    // Exact artist match
+    // --- Artist matching ---
     if (artist == q) {
-      score += 35;
+      score += 40;
     } else if (artist.contains(q)) {
+      score += 18;
+    }
+
+    // --- Token matching (bidirectional: query->track & track->query) ---
+    int titleHits = 0;
+    int artistHits = 0;
+    for (final tok in tokens) {
+      if (title.contains(tok)) {
+        score += 8;
+        titleHits++;
+      }
+      if (artist.contains(tok)) {
+        score += 10;
+        artistHits++;
+      }
+    }
+    // Bonus proporsional: semua token query cocok dengan title + artist
+    if (tokens.isNotEmpty && titleHits + artistHits >= tokens.length) {
       score += 15;
     }
 
-    // Token matches
-    for (final tok in tokens) {
-      if (title.contains(tok)) score += 8;
-      if (artist.contains(tok)) score += 10;
-    }
-
-    // Penalti untuk versi cover jika pengguna tidak mencari cover
+    // --- Penalti konten non-asli ---
     if (!q.contains('cover') && (title.contains('cover') || artist.contains('cover'))) {
       score -= 25;
     }
-    // Penalti untuk backing track, tribute, instrumental, karaoke
     if (!q.contains('backing') && title.contains('backing track')) score -= 30;
     if (!q.contains('tribute') && title.contains('tribute')) score -= 25;
     if (!q.contains('karaoke') && (title.contains('karaoke') || artist.contains('karaoke'))) score -= 30;
+
+    // Penalti live version ringan (pengguna biasanya mencari versi studio)
+    if (!q.contains('live') && (title.contains('live at') || title.contains('live from') || title.contains('(live'))) {
+      score -= 10;
+    }
+
+    // Penalti video lirik dari channel reupload (bukan artis asli)
+    if (title.contains('lyrics') || title.contains('lirik') || title.contains('letra')) {
+      if (t.album == 'YouTube' && t.youtubeId != null) {
+        score -= 8;
+      }
+    }
 
     // Bonus track yang sudah memiliki direct youtubeId (instant playback)
     if (t.youtubeId != null) score += 5;

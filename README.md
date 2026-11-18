@@ -97,6 +97,7 @@ Catatan perilaku penting:
 - **Fallback Stream Adaptif**: Jika stream progresif tidak tersedia, pemutar menggunakan `YouTubeStreamSource` (`StreamAudioSource`) dengan potongan aman 64 KB / 128 KB dan refresh URL otomatis.
 - **Navigasi Antrean Berbasis Indeks Eksplisit**: Navigasi `playTrack`, `next()`, dan `previous()` menggunakan pelacakan indeks posisi antrean eksplisit sehingga lagu dengan ID serupa atau cover beruntun tidak menyebabkan snapping ke indeks awal.
 - **Pre-caching Stream Lagu Berikutnya**: Saat sebuah lagu mulai diputar, resolusi stream lagu berikutnya di antrean langsung dimulai di latar belakang untuk perpindahan lagu nyaris instan tanpa jeda buffering.
+- **Proteksi State Selesai (Zero-Second Completion Guard)**: Mencegah bug engine audio Windows (`just_audio_windows`) yang memancarkan status `completed` di detik 0 saat pembukaan media (`0 == 0`), sehingga lagu yang dipilih di Hasil Teratas maupun antrean tidak terlewat ke lagu berikutnya saat pertama kali diklik.
 - URL stream YouTube memiliki masa hidup singkat dan terikat pada IP perangkat: cache dibatasi 3 jam, dan saat CDN membalas 403 aplikasi otomatis me-resolve URL baru lalu melanjutkan.
 - Shuffle memakai generator acak sejati, bukan `DateTime.now().millisecond`.
 - Antrean dibatasi 300 lagu dan tambahan autoplay dibatasi 15 lagu per siklus.

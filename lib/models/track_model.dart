@@ -118,8 +118,9 @@ class TrackModel {
   static String cleanTitle(String raw) {
     var title = raw;
     final regexes = [
-      RegExp(r'\([^)]*?(official|video|audio|4k|hd|hq|lyrics|lyric|remastered|visualizer)[^)]*?\)', caseSensitive: false),
-      RegExp(r'\[[^\]]*?(official|video|audio|4k|hd|hq|lyrics|lyric|remastered|visualizer)[^\]]*?\]', caseSensitive: false),
+      RegExp(r'\([^)]*?(official|video|audio|4k|hd|hq|lyrics|lyric|lirik|letra|remastered|visualizer|music\s*video|mv|sub\.?\s*indonesian?|terjemahan|legendado)[^)]*?\)', caseSensitive: false),
+      RegExp(r'\[[^\]]*?(official|video|audio|4k|hd|hq|lyrics|lyric|lirik|letra|remastered|visualizer|music\s*video|mv|sub\.?\s*indonesian?|terjemahan|legendado|best\s*live)[^\]]*?\]', caseSensitive: false),
+      RegExp(r'\|\s*(mtv\s*music|lirik\s*terjemahan|sub\.?\s*indonesian?).*$', caseSensitive: false),
       RegExp(r'\s*ft\.?.*$', caseSensitive: false),
       RegExp(r'\s*feat\.?.*$', caseSensitive: false),
     ];

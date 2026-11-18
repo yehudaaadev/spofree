@@ -136,7 +136,9 @@ class PlayerProvider with ChangeNotifier {
   PlayerProvider() {
     _player = AudioPlayer(
       audioPipeline: AudioPipeline(
-        androidAudioEffects: [_equalizer, _loudnessEnhancer],
+        androidAudioEffects: (!kIsWeb && Platform.isAndroid)
+            ? [_equalizer, _loudnessEnhancer]
+            : const [],
       ),
     );
     _initPlayer();
@@ -269,12 +271,26 @@ class PlayerProvider with ChangeNotifier {
       _isPlaying = state.playing;
 
       if (state.processingState == ProcessingState.completed) {
-        if (_sleepAtSongEnd) {
-          pause();
-          _sleepAtSongEnd = false;
-          notifyListeners();
-        } else {
-          next();
+        // Abaikan sinyal completed palsu (mis. bug just_audio_windows di detik 0 saat loading sumber audio)
+        final effectiveDuration = _duration > Duration.zero
+            ? _duration
+            : (_currentTrack != null
+                ? Duration(milliseconds: _currentTrack!.durationMs)
+                : Duration.zero);
+
+        final isRealEnd = !_isLoadingAudio &&
+            (_position > const Duration(seconds: 2) ||
+                (effectiveDuration > Duration.zero &&
+                    _position >= effectiveDuration - const Duration(seconds: 3)));
+
+        if (isRealEnd) {
+          if (_sleepAtSongEnd) {
+            pause();
+            _sleepAtSongEnd = false;
+            notifyListeners();
+          } else {
+            next();
+          }
         }
       }
       notifyListeners();

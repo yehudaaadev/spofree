@@ -184,8 +184,8 @@ void main() {
         ytRank: 8,
       );
 
-      // 50 (YT #0) + 40 (Deezer #0) + 60 (Consensus) + 25 (Topic) = 175
-      expect(bonusCanonical, equals(175));
+      // 85 (YT #0) + 20 (Deezer #0) + 15 (Consensus) + 30 (Topic) = 150
+      expect(bonusCanonical, equals(150));
       expect(bonusFan, equals(0));
 
       final scoreCanonical = MusicService.scoreTrack(
@@ -203,7 +203,7 @@ void main() {
     });
   });
 
-  group('MusicService.calculateAuthorityBonus details', () {
+  group('MusicService.calculateAuthorityBonus details (YouTube-First)', () {
     const defaultTrack = TrackModel(
       id: '10',
       title: 'Hey Jude',
@@ -213,29 +213,29 @@ void main() {
       durationMs: 420000,
     );
 
-    test('memberikan bonus sesuai tangga popularitas organik YouTube', () {
-      expect(MusicService.calculateAuthorityBonus(defaultTrack, ytRank: 0), equals(50));
-      expect(MusicService.calculateAuthorityBonus(defaultTrack, ytRank: 1), equals(35));
-      expect(MusicService.calculateAuthorityBonus(defaultTrack, ytRank: 2), equals(25));
-      expect(MusicService.calculateAuthorityBonus(defaultTrack, ytRank: 3), equals(18));
-      expect(MusicService.calculateAuthorityBonus(defaultTrack, ytRank: 4), equals(12));
-      expect(MusicService.calculateAuthorityBonus(defaultTrack, ytRank: 6), equals(8));
+    test('memberikan bonus sesuai tangga popularitas organik YouTube (bobot tinggi)', () {
+      expect(MusicService.calculateAuthorityBonus(defaultTrack, ytRank: 0), equals(85));
+      expect(MusicService.calculateAuthorityBonus(defaultTrack, ytRank: 1), equals(55));
+      expect(MusicService.calculateAuthorityBonus(defaultTrack, ytRank: 2), equals(38));
+      expect(MusicService.calculateAuthorityBonus(defaultTrack, ytRank: 3), equals(25));
+      expect(MusicService.calculateAuthorityBonus(defaultTrack, ytRank: 4), equals(18));
+      expect(MusicService.calculateAuthorityBonus(defaultTrack, ytRank: 6), equals(10));
       expect(MusicService.calculateAuthorityBonus(defaultTrack, ytRank: 10), equals(0));
     });
 
-    test('memberikan bonus sesuai tangga popularitas organik Deezer', () {
-      expect(MusicService.calculateAuthorityBonus(defaultTrack, deezerRank: 0), equals(40));
-      expect(MusicService.calculateAuthorityBonus(defaultTrack, deezerRank: 1), equals(25));
-      expect(MusicService.calculateAuthorityBonus(defaultTrack, deezerRank: 2), equals(15));
-      expect(MusicService.calculateAuthorityBonus(defaultTrack, deezerRank: 5), equals(8));
+    test('memberikan bonus pelengkap Deezer (bobot rendah)', () {
+      expect(MusicService.calculateAuthorityBonus(defaultTrack, deezerRank: 0), equals(20));
+      expect(MusicService.calculateAuthorityBonus(defaultTrack, deezerRank: 1), equals(12));
+      expect(MusicService.calculateAuthorityBonus(defaultTrack, deezerRank: 2), equals(8));
+      expect(MusicService.calculateAuthorityBonus(defaultTrack, deezerRank: 5), equals(4));
       expect(MusicService.calculateAuthorityBonus(defaultTrack, deezerRank: 8), equals(0));
     });
 
-    test('memberikan bonus kesepakatan kanonikal saat muncul di top 3 kedua layanan', () {
-      // 50 (yt#0) + 40 (deezer#0) + 60 (consensus) = 150
+    test('memberikan bonus konsensus ringan saat muncul di top 2 kedua layanan', () {
+      // 85 (yt#0) + 20 (deezer#0) + 15 (consensus) = 120
       expect(
         MusicService.calculateAuthorityBonus(defaultTrack, ytRank: 0, deezerRank: 0),
-        equals(150),
+        equals(120),
       );
     });
 
@@ -248,7 +248,64 @@ void main() {
         artworkUrl: '',
         durationMs: 420000,
       );
-      expect(MusicService.calculateAuthorityBonus(topicTrack), equals(25));
+      expect(MusicService.calculateAuthorityBonus(topicTrack), equals(30));
+    });
+
+    test('YouTube #0 tanpa Deezer tetap mengalahkan Deezer #0 tanpa YouTube', () {
+      final ytOnly = MusicService.calculateAuthorityBonus(defaultTrack, ytRank: 0);
+      final deezerOnly = MusicService.calculateAuthorityBonus(defaultTrack, deezerRank: 0);
+      expect(ytOnly, greaterThan(deezerOnly * 3));
+    });
+  });
+
+  group('YouTube-First scoring: artis kanonikal naik di atas cover', () {
+    test('Oasis Champagne Supernova mengalahkan cover Jillette Johnson', () {
+      const oasis = TrackModel(
+        id: 'yt_tI-5uv4wryI',
+        title: 'Champagne Supernova',
+        artist: 'Oasis',
+        album: 'YouTube',
+        artworkUrl: '',
+        durationMs: 449000,
+        youtubeId: 'tI-5uv4wryI',
+      );
+      const jillette = TrackModel(
+        id: 'deezer_123',
+        title: 'Champagne Supernova (OurVinyl Sessions)',
+        artist: 'Jillette Johnson',
+        album: 'OurVinyl Sessions',
+        artworkUrl: '',
+        durationMs: 400000,
+      );
+      final bonusOasis = MusicService.calculateAuthorityBonus(oasis, ytRank: 0);
+      final bonusJillette = MusicService.calculateAuthorityBonus(jillette, deezerRank: 0);
+      final scoreOasis = MusicService.scoreTrack(oasis, 'champagne supernova', authorityBonus: bonusOasis);
+      final scoreJillette = MusicService.scoreTrack(jillette, 'champagne supernova', authorityBonus: bonusJillette);
+      expect(scoreOasis, greaterThan(scoreJillette));
+    });
+
+    test('live version mendapat penalti ringan', () {
+      const studio = TrackModel(
+        id: '1',
+        title: 'Champagne Supernova',
+        artist: 'Oasis',
+        album: 'YouTube',
+        artworkUrl: '',
+        durationMs: 449000,
+        youtubeId: 'tI-5uv4wryI',
+      );
+      const live = TrackModel(
+        id: '2',
+        title: 'Champagne Supernova (Live From Knebworth 22)',
+        artist: 'Liam Gallagher',
+        album: 'YouTube',
+        artworkUrl: '',
+        durationMs: 443000,
+        youtubeId: 'P5AjSVwZ9H0',
+      );
+      final scoreStudio = MusicService.scoreTrack(studio, 'champagne supernova', authorityBonus: 85);
+      final scoreLive = MusicService.scoreTrack(live, 'champagne supernova', authorityBonus: 55);
+      expect(scoreStudio, greaterThan(scoreLive));
     });
   });
 }

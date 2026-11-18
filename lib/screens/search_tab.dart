@@ -308,7 +308,7 @@ class _SearchTabState extends State<SearchTab> {
                     player.resume();
                   }
                 } else {
-                  player.playTrack(track, queue: _results);
+                  player.playTrack(track, queue: _results, explicitIndex: 0);
                 }
               },
               onLongPress: () {
@@ -445,7 +445,7 @@ class _SearchTabState extends State<SearchTab> {
                             player.resume();
                           }
                         } else {
-                          player.playTrack(track, queue: _results);
+                          player.playTrack(track, queue: _results, explicitIndex: 0);
                         }
                       },
                       child: Container(
@@ -533,7 +533,8 @@ class _SearchTabState extends State<SearchTab> {
       ),
       onTap: () {
         HapticFeedback.selectionClick();
-        player.playTrack(track, queue: _results);
+        final idx = _results.indexOf(track);
+        player.playTrack(track, queue: _results, explicitIndex: idx >= 0 ? idx : null);
       },
       onLongPress: () {
         HapticFeedback.selectionClick();
