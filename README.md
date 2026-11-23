@@ -1,9 +1,24 @@
-# Wave Music (Standalone Music Player)
+# Wave Music
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-F43F5E?style=for-the-badge)](LICENSE)
+<p align="center">
+  <a href="https://github.com/yehudaaadev/spofree/releases/latest/download/WaveMusic.apk">
+    <img src="https://img.shields.io/badge/Download_APK-F43F5E?style=for-the-badge&logo=android&logoColor=white" alt="Download APK">
+  </a>
+  <a href="https://github.com/yehudaaadev/spofree/releases/latest">
+    <img src="https://img.shields.io/github/v/release/yehudaaadev/spofree?style=for-the-badge&color=F43F5E&label=versi" alt="Versi terbaru">
+  </a>
+  <img src="https://img.shields.io/badge/Android-7%2B-16161B?style=for-the-badge&logo=android" alt="Android 7+">
+  <img src="https://img.shields.io/badge/Windows-Desktop-16161B?style=for-the-badge&logo=windows" alt="Windows Desktop">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/Lisensi-MIT-F43F5E?style=for-the-badge" alt="Lisensi MIT"></a>
+</p>
 
-> **Status distribusi:** Wave Music adalah proyek pribadi/edukasi. README ini
-> tidak menampilkan tautan unduhan APK; build sendiri mengikuti panduan di bawah.
+<p align="center">
+  <strong>Versi 1.1.0 · build 6</strong> — tombol di atas mengunduh APK terbaru
+  langsung dari GitHub Releases, tanpa membuka menu Releases.
+</p>
+
+> **Status distribusi:** Wave Music adalah proyek pribadi/edukasi. APK saat ini
+> dibangun tanpa keystore rilis resmi, jadi gunakan untuk pengujian pribadi.
 > Jangan menyebarkan APK yang memuat rekaman berhak cipta.
 
 Aplikasi pemutar musik mandiri berpenampilan modern dalam tema **Rose Pink & Obsidian Charcoal** (`#F43F5E` & `#0E0E11`) dengan audio stream YouTube bebas iklan, cover art resmi Deezer HD 1:1, unduhan offline, lirik sinkron, dan dukungan pemutaran audio lintas-platform (Android & Windows Desktop).
