@@ -56,6 +56,9 @@
 47. **Storage Management Panel**: `StorageStatsService` combines `AudioCacheService` stats, downloaded-file sizes, and native Android `StatFs` free/total bytes. `StorageSheet` can clear the audio cache or all offline downloads and refreshes `LibraryProvider`.
 48. **Wi-Fi-Only Downloads**: `NetworkStatusService` queries native `ConnectivityManager` (`ACCESS_NETWORK_STATE`). `LibraryProvider` rejects single/bulk downloads on metered networks with a clear `lastDownloadError`, configurable from the app info sheet.
 49. **Release Signing in CI**: The repository has a permanent Wave Music release keystore (RSA 4096, valid until 2054) stored outside the repo, with all four Actions secrets configured. The workflow creates `android/key.properties` from `ANDROID_KEYSTORE_BASE64` and signs release APKs; without the secret it falls back to debug signing.
+50. **Serverless Playlist Sharing**: `PlaylistShareService` encodes a playlist or the whole Liked Songs collection as `WAVE1.` + gzip + unpadded base64url. The compact payload keeps track ID (unless local), title, artist, album, duration, and YouTube ID; artwork is reconstructed from the YouTube ID. Decoding accepts a bare code, line-wrapped code, or a whole chat message containing the code. `LibraryProvider.importSharedCollection` creates a playlist or merges by case-insensitive name, dedupes by track ID, and does not duplicate liked tracks.
+51. **Bounded Share-Code Decoding**: Validation covers format prefix/version, base64/gzip CRC, 200k-character input, 4 MB decompressed output via a bounded `Sink`, 1,000-track cap, control-character stripping, and field-length clamps. A gzip bomb is rejected before it can exhaust device RAM. Codes from a newer format version produce an update-app message instead of a generic parse error.
+52. **Offline QR Sharing UI**: Each playlist row has a share action; the info sheet can share all Liked Songs and receive a code. `ShareCollectionDialog` shows a QR only when the code fits the 2,400-character comfort limit, with copy and native share fallbacks. `ReceiveCollectionDialog` supports paste, full-message paste, and QR scanning via `mobile_scanner`; `ShareCodeScannerScreen` ignores non-Wave QR codes. Camera scanning is exposed on Android/iOS/macOS; Windows can still paste and share text.
 
 ## Known Limitations
 - Update flow opens the APK in a browser; it cannot download or verify the APK automatically. Checksums are provided for manual verification (`SHA256SUMS.txt`).
@@ -66,13 +69,17 @@
 - The Android application ID, MethodChannel names, and preference keys still use `spotify_pribadi`/`spotube_*` for upgrade compatibility. Only user-facing branding was renamed to Wave Music.
 - `getStorageStats` reports the internal data partition on Android; desktop builds show cache/download sizes without free-space statistics.
 - The release keystore lives outside the repo (`release-keys/wave-music-release.jks` in the workspace parent). Losing it prevents signing updates with the same identity; keep a secure backup. Local builds without `android/key.properties` are debug-signed.
+- Playlist share codes carry metadata only, not audio files or downloaded local files. A recipient still streams each track from YouTube and must download it again for offline use.
+- QR sharing is limited to roughly 2,400 code characters; larger playlists must be shared as text. Camera scanning is not available on Windows, where paste/copy remains available.
+- Bundling ML Kit through `mobile_scanner` increases release APK size by roughly 6 MB per ABI.
 
 ## Verification Status
-- Version: 1.2.0 (Build 7) — dibaca otomatis dari `package_info_plus` saat runtime.
+- Version: 1.2.0 (Build 7) — APK publik terakhir. Source `main` kini juga memuat fitur berbagi kode/QR yang belum dirilis; naikkan ke 1.3.0 (Build 8) saat siap menerbitkan rilis berikutnya.
 - Static Analysis: `flutter analyze` passed (0 issues).
-- Unit Tests: `flutter test` passed (113 tests, 4 network tests skipped by default).
+- Unit Tests: `flutter test` passed (130 tests, 4 network tests skipped by default), including new share-code round-trip, malformed/gzip-bomb, merge/dedupe, and QR-dialog widget tests.
 - CI: `.github/workflows/build_apk.yml` runs `flutter analyze` + `flutter test` on pushes/PRs and publishes per-ABI APKs plus `SHA256SUMS.txt` on `v*` tags. `.gitlab-ci.yml` remains as a fallback.
 - Build debug berhasil: Windows (`build\windows\x64\runner\Debug\spotify_pribadi.exe`) dan Android (`build\app\outputs\flutter-apk\app-debug.apk`). Build rilis lokal `flutter build apk --release --split-per-abi` juga berhasil (arm64-v8a, armeabi-v7a, x86_64).
+- Build rilis dengan fitur berbagi: arm64-v8a 35.362.000 byte dan armeabi-v7a 31.330.118 byte; `versionName=1.2.0`, `versionCode=2007`, `minSdk=24`, izin `CAMERA` terpasang, dan sertifikat `CN=Wave Music` terverifikasi.
 - Rilis `v1.2.0` sudah dipublikasikan di GitHub Releases. Aset `WaveMusic-arm64-v8a.apk`, `WaveMusic-armeabi-v7a.apk`, dan `SHA256SUMS.txt` terverifikasi: kedua hash APK cocok, ketiga URL unduhan merespons HTTP 200, dan metadata APK arm64 menunjukkan `versionName=1.2.0` dengan `versionCode=2007`.
-- Catatan: APK hasil build lokal maupun rilis belum diuji ulang pada perangkat fisik dalam sesi ini; verifikasi runtime Android (resume antrean, deteksi Wi-Fi, statistik penyimpanan, pemasangan APK) tetap diperlukan.
+- Catatan: APK hasil build lokal maupun rilis belum diuji ulang pada perangkat fisik dalam sesi ini; verifikasi runtime Android (resume antrean, deteksi Wi-Fi, statistik penyimpanan, pemasangan APK) tetap diperlukan. Untuk fitur berbagi, yang masih perlu diuji di HP adalah izin kamera, scan QR antarponsel, share sheet, dan impor kode nyata.
 - Signing: APK rilis v1.2.0 ditandatangani release key Wave Music (SHA-256 sertifikat `aa06ab7f9c27a08695a46b5012762b609d4eac5ba5b22590d67b0605010bd4da`), bukan debug key. Build lokal memakai keystore yang sama.

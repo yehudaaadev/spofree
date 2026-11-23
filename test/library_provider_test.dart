@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:spotify_pribadi/models/track_model.dart';
 import 'package:spotify_pribadi/providers/library_provider.dart';
 import 'package:spotify_pribadi/services/playlist_backup_service.dart';
+import 'package:spotify_pribadi/services/playlist_share_service.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -157,6 +158,101 @@ void main() {
         playlist.tracks.map((t) => t.id),
         containsAll(<String>['track_1', 'track_2']),
       );
+    });
+  });
+
+  group('LibraryProvider.importSharedCollection', () {
+    const sharedTrack1 = TrackModel(
+      id: 'yt_share00001',
+      title: 'Lagu Bagian Satu',
+      artist: 'Artis Berbagi',
+      album: 'Album Berbagi',
+      artworkUrl: 'https://i.ytimg.com/vi/share00001/hqdefault.jpg',
+      durationMs: 200000,
+      youtubeId: 'share00001',
+    );
+    const sharedTrack2 = TrackModel(
+      id: 'yt_share00002',
+      title: 'Lagu Bagian Dua',
+      artist: 'Artis Berbagi',
+      album: 'Album Berbagi',
+      artworkUrl: 'https://i.ytimg.com/vi/share00002/hqdefault.jpg',
+      durationMs: 210000,
+      youtubeId: 'share00002',
+    );
+
+    test('playlist baru dibuat sekali dan impor ulang tidak menduplikasi',
+        () async {
+      final provider = LibraryProvider();
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      const collection = SharedCollection(
+        kind: SharedCollectionKind.playlist,
+        name: 'Dari Teman',
+        tracks: [sharedTrack1, sharedTrack2],
+      );
+
+      final first = await provider.importSharedCollection(collection);
+      expect(first.createdPlaylist, isTrue);
+      expect(first.addedTracks, 2);
+      expect(provider.playlists.length, 1);
+      expect(provider.playlists.single.name, 'Dari Teman');
+      expect(provider.playlists.single.tracks.length, 2);
+
+      final second = await provider.importSharedCollection(collection);
+      expect(second.createdPlaylist, isFalse);
+      expect(second.addedTracks, 0);
+      expect(provider.playlists.length, 1);
+      expect(provider.playlists.single.tracks.length, 2);
+    });
+
+    test('playlist bernama sama digabung dan hanya lagu baru ditambahkan',
+        () async {
+      final provider = LibraryProvider();
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      await provider.importSharedCollection(
+        const SharedCollection(
+          kind: SharedCollectionKind.playlist,
+          name: 'Gabungan',
+          tracks: [sharedTrack1],
+        ),
+      );
+
+      final result = await provider.importSharedCollection(
+        const SharedCollection(
+          kind: SharedCollectionKind.playlist,
+          name: 'gabungan',
+          tracks: [sharedTrack1, sharedTrack2],
+        ),
+      );
+
+      expect(result.createdPlaylist, isFalse);
+      expect(result.addedTracks, 1);
+      expect(provider.playlists.length, 1);
+      expect(provider.playlists.single.tracks.length, 2);
+    });
+
+    test('lagu disukai dari kode tidak terduplikasi dan likedAt terisi',
+        () async {
+      final provider = LibraryProvider();
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      const collection = SharedCollection(
+        kind: SharedCollectionKind.liked,
+        name: 'Lagu Disukai',
+        tracks: [sharedTrack1, sharedTrack2],
+      );
+
+      final first = await provider.importSharedCollection(collection);
+      expect(first.isLiked, isTrue);
+      expect(first.addedTracks, 2);
+      expect(provider.likedList.length, 2);
+      expect(provider.likedList.every((t) => t.likedAt != null), isTrue);
+
+      final second = await provider.importSharedCollection(collection);
+      expect(second.addedTracks, 0);
+      expect(provider.likedList.length, 2);
     });
   });
 

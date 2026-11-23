@@ -9,6 +9,7 @@ import '../services/local_library_service.dart';
 import '../services/music_service.dart';
 import '../services/network_status_service.dart';
 import '../services/playlist_backup_service.dart';
+import '../services/playlist_share_service.dart';
 import '../services/stable_hash.dart';
 
 /// Metadata sebuah playlist beserta lagunya.
@@ -257,6 +258,87 @@ class LibraryProvider with ChangeNotifier {
     };
     await _store.savePlaylists(playlists);
     await refreshLibrary();
+  }
+
+  /// Menggabungkan koleksi dari kode berbagi ke pustaka lokal.
+  ///
+  /// Playlist dengan nama yang sama akan digabung (dedupe per ID lagu), bukan
+  /// diduplikasi. Lagu disukai yang sudah ada juga tidak ditambahkan dua kali.
+  Future<SharedCollectionImportResult> importSharedCollection(
+    SharedCollection collection,
+  ) async {
+    if (collection.isLiked) {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      var added = 0;
+      for (var i = 0; i < collection.tracks.length; i++) {
+        final track = collection.tracks[i];
+        if (_likedTracks.containsKey(track.id)) continue;
+        _likedTracks[track.id] = track.copyWith(likedAt: now + i);
+        added++;
+      }
+      if (added > 0) {
+        await _store.saveLiked(_likedTracks);
+        notifyListeners();
+      }
+      return SharedCollectionImportResult(
+        kind: collection.kind,
+        name: collection.name,
+        totalTracks: collection.tracks.length,
+        addedTracks: added,
+        createdPlaylist: false,
+      );
+    }
+
+    final name = collection.name.trim().isEmpty
+        ? 'Playlist Dibagikan'
+        : collection.name.trim();
+    final playlists = await _currentPlaylistMap();
+
+    String? existingId;
+    for (final playlist in _playlists) {
+      if (playlist.name.toLowerCase() == name.toLowerCase()) {
+        existingId = playlist.id;
+        break;
+      }
+    }
+
+    final createdPlaylist = existingId == null;
+    final playlistId = existingId ?? 'pl_${DateTime.now().microsecondsSinceEpoch}';
+    final entry = playlists[playlistId] ??
+        <String, dynamic>{'name': name, 'tracks': <Map<String, dynamic>>[]};
+
+    final merged = <String, Map<String, dynamic>>{};
+    for (final raw in (entry['tracks'] as List<dynamic>? ?? [])) {
+      if (raw is Map) {
+        final map = Map<String, dynamic>.from(raw);
+        merged[map['id'].toString()] = map;
+      }
+    }
+
+    var added = 0;
+    for (final track in collection.tracks) {
+      if (merged.containsKey(track.id)) continue;
+      merged[track.id] = track.toMap();
+      added++;
+    }
+
+    if (createdPlaylist || added > 0) {
+      entry['name'] = entry['name']?.toString().trim().isNotEmpty == true
+          ? entry['name']
+          : name;
+      entry['tracks'] = merged.values.toList();
+      playlists[playlistId] = entry;
+      await _store.savePlaylists(playlists);
+      await refreshLibrary();
+    }
+
+    return SharedCollectionImportResult(
+      kind: collection.kind,
+      name: entry['name']?.toString() ?? name,
+      totalTracks: collection.tracks.length,
+      addedTracks: added,
+      createdPlaylist: createdPlaylist,
+    );
   }
 
   /// Memulihkan koleksi lagu disukai dan playlist dari berkas backup.

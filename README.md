@@ -119,6 +119,7 @@ Aplikasi pemutar musik mandiri berpenampilan modern dalam tema **Rose Pink & Obs
 - **Pencarian dalam Koleksi**: Cari lagu berdasarkan judul, artis, atau album pada tab Lagu Disukai, Offline, dan File Lokal.
 - **Mode Unduh Hanya via Wi-Fi**: Mencegah kuota seluler terpakai; unduhan ditolak dengan pesan jelas saat perangkat memakai data seluler.
 - **Panel Penyimpanan**: Lihat ukuran cache audio (maks. 300 MB), jumlah/ukuran unduhan offline, dan sisa ruang perangkat. Tersedia tombol hapus cache dan hapus semua unduhan.
+- **Berbagi Playlist Offline (Kode & QR)** *(ada di source `main`, masuk APK rilis berikutnya)*: Bagikan satu playlist atau seluruh Lagu Disukai sebagai kode `WAVE1...` atau QR. Penerima bisa menempel kode, menyalin seluruh pesan chat, atau memindai QR; impor berjalan tanpa server dan tanpa akun. Playlist bernama sama digabung tanpa duplikat, dan lagu lokal tidak membawa path perangkat pengirim.
 - Bulk Download ("Download Semua") untuk seluruh lagu di playlist/liked sekaligus.
 - **Pengurutan Kronologis Lagu Disukai (LIFO / Timestamp)**: Menyimpan timestamp `likedAt` saat lagu disukai pengguna dan otomatis menempatkan lagu yang baru disukai di posisi teratas koleksi secara kronologis beserta tanggal penambahan.
 - Koleksi tersimpan lokal di perangkat: Lagu Disukai, Playlist, dan riwayat "Baru Saja Diputar" tetap ada antar-jalankan aplikasi (tanpa perlu akun).
@@ -136,6 +137,7 @@ lib/
 │  ├─ youtube_stream_source.dart  Stream audio YouTube via Range request terbatasi
 │  ├─ ranged_http_client.dart      Klien HTTP dengan header `Range` terbatasi
 │  ├─ playlist_import_service.dart  Impor playlist Spotify (embed __NEXT_DATA__) & YouTube
+│  ├─ playlist_share_service.dart  Kode WAVE1 (gzip + base64url), QR, validasi & impor anti-duplikat
 │  ├─ lyrics_service.dart    LRCLIB + parser LRC murni (dapat diuji)
 │  ├─ download_service.dart  Unduh offline (per potongan), validasi utuh, ekspor + ID3
 │  ├─ audio_cache_service.dart  Cache LRU 300 MB dengan permintaan Range + validasi
@@ -148,11 +150,13 @@ lib/
 │  ├─ local_audio_service.dart  Pindai file audio lokal
 │  ├─ id3_writer.dart        Penulis tag ID3v2.3 (TIT2/TPE1/TALB/APIC)
 │  └─ (tanpa Firebase / tanpa service auth)
-├─ screens/                  main_screen, onboarding_screen, home_tab, search_tab, library_tab
+├─ screens/                  main_screen, onboarding_screen, home_tab, search_tab, library_tab,
+│                            share_scanner_screen (scan QR kamera)
 └─ widgets/                  player_sheet, mini_player, queue_sheet, equalizer_sheet,
                               sleep_timer_dialog, playback_options_sheet, vinyl_disc_widget,
                               mini_visualizer, lyric_share_dialog, export_audio_dialog,
-                              import_playlist_dialog, storage_sheet, app_logo, terms_dialog
+                              import_playlist_dialog, share_collection_dialog,
+                              receive_collection_dialog, storage_sheet, app_logo, terms_dialog
 ```
 
 Catatan perilaku penting:
@@ -167,7 +171,7 @@ Catatan perilaku penting:
 - Shuffle memakai generator acak sejati, bukan `DateTime.now().millisecond`.
 - Antrean dibatasi 300 lagu dan tambahan autoplay dibatasi 15 lagu per siklus.
 
-## Izin Penyimpanan (Android)
+## Izin Android
 
 - `READ_EXTERNAL_STORAGE` dibatasi sampai Android 12 (`maxSdkVersion=32`).
 - `WRITE_EXTERNAL_STORAGE` dibatasi sampai Android 10 (`maxSdkVersion=29`).
@@ -177,6 +181,8 @@ Catatan perilaku penting:
   kebijakan toko.
 - `POST_NOTIFICATIONS` diminta saat aplikasi dibuka (Android 13+) agar kontrol
   pemutaran tampil di laci notifikasi.
+- `CAMERA` hanya dipakai untuk memindai QR kode berbagi playlist. Menolak izin
+  ini tidak memblokir fitur lain; kode tetap bisa ditempel secara manual.
 
 Izin yang ditolak ditangani dengan pesan yang jelas, bukan diam-diam gagal.
 Ekspor juga memiliki fallback ke folder dokumen aplikasi bila folder publik

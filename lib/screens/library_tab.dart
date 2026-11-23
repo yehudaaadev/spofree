@@ -11,6 +11,8 @@ import '../services/update_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/export_audio_dialog.dart';
 import '../widgets/import_playlist_dialog.dart';
+import '../widgets/receive_collection_dialog.dart';
+import '../widgets/share_collection_dialog.dart';
 import '../widgets/storage_sheet.dart';
 import '../widgets/track_options_sheet.dart';
 
@@ -271,6 +273,19 @@ class _LibraryTabState extends State<LibraryTab> {
                           onPressed: () => _showCreatePlaylistDialog(context),
                         ),
                       ],
+                      if (_selectedFilter == 0)
+                        IconButton(
+                          icon: const Icon(Icons.ios_share, color: AppTheme.textPrimary),
+                          tooltip: 'Bagikan Lagu Disukai',
+                          onPressed: library.likedList.isEmpty
+                              ? null
+                              : () => ShareCollectionDialog.show(
+                                    context,
+                                    name: 'Lagu Disukai',
+                                    tracks: library.likedList,
+                                    isLiked: true,
+                                  ),
+                        ),
                       IconButton(
                         icon: const Icon(Icons.info_outline, color: AppTheme.textPrimary),
                         tooltip: 'Status & Bantuan',
@@ -688,6 +703,13 @@ class _LibraryTabState extends State<LibraryTab> {
               onPressed: () => _showCreatePlaylistDialog(context),
               child: const Text('Buat Playlist Pertama', style: TextStyle(color: Colors.black)),
             ),
+            const SizedBox(height: 8),
+            TextButton.icon(
+              onPressed: () => ReceiveCollectionDialog.show(context),
+              icon: const Icon(Icons.move_to_inbox_rounded, size: 17),
+              label: const Text('Terima Kode Playlist'),
+              style: TextButton.styleFrom(foregroundColor: AppTheme.textSecondary),
+            ),
           ],
         ),
       );
@@ -717,19 +739,39 @@ class _LibraryTabState extends State<LibraryTab> {
             '${playlist.tracks.length} lagu',
             style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12),
           ),
-          trailing: IconButton(
-            icon: const Icon(Icons.delete_outline, color: AppTheme.textSecondary, size: 20),
-            onPressed: () async {
-              final confirmed = await _confirmDelete(
-                context,
-                title: 'Hapus Playlist?',
-                message:
-                    'Playlist "${playlist.name}" beserta daftar lagunya akan dihapus. Lagu yang sudah diunduh tetap tersimpan.',
-              );
-              if (confirmed) {
-                await library.deletePlaylist(playlist.id);
-              }
-            },
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(
+                  Icons.ios_share,
+                  color: AppTheme.textSecondary,
+                  size: 19,
+                ),
+                tooltip: 'Bagikan playlist',
+                onPressed: playlist.tracks.isEmpty
+                    ? null
+                    : () => ShareCollectionDialog.show(
+                          context,
+                          name: playlist.name,
+                          tracks: playlist.tracks,
+                        ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete_outline, color: AppTheme.textSecondary, size: 20),
+                onPressed: () async {
+                  final confirmed = await _confirmDelete(
+                    context,
+                    title: 'Hapus Playlist?',
+                    message:
+                        'Playlist "${playlist.name}" beserta daftar lagunya akan dihapus. Lagu yang sudah diunduh tetap tersimpan.',
+                  );
+                  if (confirmed) {
+                    await library.deletePlaylist(playlist.id);
+                  }
+                },
+              ),
+            ],
           ),
           onTap: () {
             if (playlist.tracks.isNotEmpty) {
@@ -1205,6 +1247,94 @@ class _LibraryTabState extends State<LibraryTab> {
                           },
                           icon: const Icon(Icons.battery_charging_full, size: 16),
                           label: const Text('Buka Pengaturan Baterai', style: TextStyle(fontSize: 12)),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF282828),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFF383838)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Berbagi Koleksi (Offline)',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        const Text(
+                          'Bagikan lagu disukai atau terima playlist dari teman lewat kode/QR. '
+                          'Kode berisi daftar lagu, tanpa server dan tanpa akun. Bagikan playlist '
+                          'tertentu lewat ikon bagikan di samping namanya.',
+                          style: TextStyle(fontSize: 12, color: Colors.white70),
+                        ),
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.white,
+                                side: const BorderSide(color: Color(0xFF484848)),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              onPressed: () {
+                                final liked = context.read<LibraryProvider>().likedList;
+                                Navigator.pop(context);
+                                if (liked.isEmpty) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Belum ada lagu disukai untuk dibagikan.'),
+                                    ),
+                                  );
+                                  return;
+                                }
+                                ShareCollectionDialog.show(
+                                  context,
+                                  name: 'Lagu Disukai',
+                                  tracks: liked,
+                                  isLiked: true,
+                                );
+                              },
+                              icon: const Icon(Icons.qr_code_2, size: 16),
+                              label: const Text(
+                                'Bagikan Disukai',
+                                style: TextStyle(fontSize: 12),
+                              ),
+                            ),
+                            OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: AppTheme.primaryGreen,
+                                side: BorderSide(
+                                  color: AppTheme.primaryGreen.withValues(alpha: 0.5),
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              onPressed: () {
+                                Navigator.pop(context);
+                                ReceiveCollectionDialog.show(context);
+                              },
+                              icon: const Icon(Icons.move_to_inbox_rounded, size: 16),
+                              label: const Text(
+                                'Terima Kode',
+                                style: TextStyle(fontSize: 12),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),

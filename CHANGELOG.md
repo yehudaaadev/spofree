@@ -4,6 +4,31 @@ Semua perubahan penting pada Wave Music dicatat di sini.
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/),
 dan versi mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 
+## [Unreleased]
+
+### Ditambahkan
+- **Berbagi playlist/lagu disukai tanpa server.** Setiap playlist punya tombol
+  bagikan; seluruh Lagu Disukai bisa dibagikan dari panel Informasi & Bantuan.
+  Data dipadatkan menjadi kode `WAVE1.` (gzip + base64url) yang bisa disalin,
+  dikirim lewat aplikasi chat, atau ditampilkan sebagai QR.
+- **Penerima kode & pemindai QR.** Panel "Terima Kode Playlist" menerima kode
+  yang ditempel, seluruh teks pesan chat, atau hasil scan QR. Impor playlist
+  bernama sama akan digabung tanpa duplikat; lagu yang sudah ada di Lagu
+  Disukai dilewati.
+- **Validasi kode berlapis.** Prefix/versi format, CRC gzip, batas panjang
+  kode, batas hasil dekompresi (4 MB), batas jumlah lagu, dan pembersihan teks
+  kontrol. Kode versi format baru menampilkan pesan agar aplikasi diperbarui.
+- **QR scanner Android/iOS/macOS** lewat `mobile_scanner`; di Windows kode
+  tetap bisa ditempel/dibagikan karena kamera tidak tersedia untuk fitur ini.
+- Dependensi baru: `qr_flutter`, `mobile_scanner`, dan `share_plus`.
+
+### Catatan
+- Fitur ini sudah lolos `flutter analyze`, tes unit/widget, dan build APK
+  rilis, tetapi **belum diuji pada perangkat fisik**. APK rilis publik terbaru
+  masih v1.2.0 dan belum memuat fitur berbagi kode/QR.
+- Ukuran APK bertambah karena ML Kit bawaan `mobile_scanner`; pemindaian QR
+  dapat ditolak izin kameranya tanpa memblokir impor manual.
+
 ## [1.2.0] - 2026-11-23
 
 ### Ditambahkan
