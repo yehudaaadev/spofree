@@ -16,6 +16,11 @@ jobs:
     name: Build Flutter APK
     runs-on: ubuntu-latest
 
+    # Bila secret keystore tersedia, APK rilis ditandatangani dengan kunci
+    # resmi. Tanpa secret, build tetap berjalan memakai debug key.
+    env:
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -42,6 +47,21 @@ jobs:
       - name: Run Tests
         run: flutter test
 
+      - name: Configure Release Signing
+        if: env.ANDROID_KEYSTORE_BASE64 != ''
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/wave-music-release.jks
+          cat > android/key.properties <<EOF
+          storeFile=../wave-music-release.jks
+          storePassword=$ANDROID_KEYSTORE_PASSWORD
+          keyAlias=$ANDROID_KEY_ALIAS
+          keyPassword=$ANDROID_KEY_PASSWORD
+          EOF
+
       - name: Build Android APK
         run: flutter build apk --release --split-per-abi
 
@@ -51,6 +71,8 @@ jobs:
           cp app-arm64-v8a-release.apk WaveMusic-arm64-v8a.apk
           cp app-armeabi-v7a-release.apk WaveMusic-armeabi-v7a.apk
           cp app-x86_64-release.apk WaveMusic-x86_64.apk
+          sha256sum WaveMusic-arm64-v8a.apk WaveMusic-armeabi-v7a.apk > SHA256SUMS.txt
+          cat SHA256SUMS.txt
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
@@ -60,6 +82,7 @@ jobs:
             build/app/outputs/flutter-apk/WaveMusic-arm64-v8a.apk
             build/app/outputs/flutter-apk/WaveMusic-armeabi-v7a.apk
             build/app/outputs/flutter-apk/WaveMusic-x86_64.apk
+            build/app/outputs/flutter-apk/SHA256SUMS.txt
           retention-days: 14
 
       - name: Publish GitHub Release
@@ -71,4 +94,5 @@ jobs:
           files: |
             build/app/outputs/flutter-apk/WaveMusic-arm64-v8a.apk
             build/app/outputs/flutter-apk/WaveMusic-armeabi-v7a.apk
+            build/app/outputs/flutter-apk/SHA256SUMS.txt
           generate_release_notes: true

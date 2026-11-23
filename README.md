@@ -19,7 +19,7 @@
 </p>
 
 <p align="center">
-  <strong>Versi 1.1.0 · build 6</strong>
+  <strong>Versi 1.2.0 · build 7</strong>
 </p>
 
 | Pilih APK | Untuk perangkat | Catatan |
@@ -32,9 +32,35 @@
 > Kalau ragu, coba yang **64-bit** dulu; kalau gagal dipasang, gunakan yang
 > **32-bit**.
 
-> **Status distribusi:** Wave Music adalah proyek pribadi/edukasi. APK saat ini
-> dibangun tanpa keystore rilis resmi, jadi gunakan untuk pengujian pribadi.
-> Jangan menyebarkan APK yang memuat rekaman berhak cipta.
+### Verifikasi Unduhan
+
+Setiap rilis menyertakan [`SHA256SUMS.txt`](https://github.com/yehudaaadev/spofree/releases/latest/download/SHA256SUMS.txt).
+Setelah mengunduh APK, cocokkan checksum-nya:
+
+```powershell
+# Windows PowerShell
+Get-FileHash .\WaveMusic-arm64-v8a.apk -Algorithm SHA256
+Get-Content .\SHA256SUMS.txt
+```
+
+```bash
+# Linux / macOS
+sha256sum -c SHA256SUMS.txt
+```
+
+Aplikasi juga menampilkan tombol **Checksum SHA-256** di menu
+**Informasi & Bantuan → Cek Update** saat versi baru tersedia.
+
+> **Status distribusi:** Wave Music adalah proyek pribadi/edukasi. APK yang
+> dipublikasikan saat ini ditandatangani dengan debug key karena belum ada
+> keystore rilis resmi; CI sudah mendukung signing lewat secret (lihat
+> [CONTRIBUTING.md](CONTRIBUTING.md#signing-rilis-opsional)). Gunakan untuk
+> pengujian pribadi. Jangan menyebarkan APK yang memuat rekaman berhak cipta.
+>
+> **Pengguna versi 1.1.0:** pembaruan otomatis belum bisa menawarkan 1.2.0
+> karena versi lama masih memeriksa GitLab. Unduh APK 1.2.0 sekali secara
+> manual dari tombol di atas; setelah itu pembaruan berikutnya dicek dari
+> GitHub Releases.
 
 Aplikasi pemutar musik mandiri berpenampilan modern dalam tema **Rose Pink & Obsidian Charcoal** (`#F43F5E` & `#0E0E11`) dengan audio stream YouTube bebas iklan, cover art resmi Deezer HD 1:1, unduhan offline, lirik sinkron, dan dukungan pemutaran audio lintas-platform (Android & Windows Desktop).
 
@@ -52,7 +78,7 @@ Aplikasi pemutar musik mandiri berpenampilan modern dalam tema **Rose Pink & Obs
 - **Dukungan Audio Windows Desktop**: Dilengkapi backend Media Foundation native (`just_audio_windows`) sehingga lagu dapat berbunyi langsung di Windows Desktop selain di Android.
 - **Solid Rose Mini Player**: Permukaan solid arang gelap (`#16161B`), animasi Mini Equalizer dinamis beraksen Rose Pink saat lagu diputar, dan gestur geser horizontal (*swipe left/right*) untuk berpindah lagu dengan haptic feedback.
 - **Proteksi Audio & Headset**: Otomatis menjeda musik saat earphone/Bluetooth dicabut (`becomingNoisy`) dan menangani interupsi panggilan telepon secara cerdas.
-- **Pengecekan Pembaruan & Bantuan Baterai**: Pengecekan update APK otomatis dari GitLab dan tombol pintasan optimasi baterai (Doze mode) untuk ponsel Xiaomi/HyperOS, Oppo, Vivo, dan Samsung.
+- **Pengecekan Pembaruan & Bantuan Baterai**: Pengecekan update APK otomatis dari **GitHub Releases** (hanya membuka tautan resmi `github.com/yehudaaadev/spofree`) dan tombol pintasan optimasi baterai (Doze mode) untuk ponsel Xiaomi/HyperOS, Oppo, Vivo, dan Samsung.
 - **Mode Piringan Hitam (Vinyl Disc)**: Pilihan tampilan cover art klasik atau piringan hitam vinyl berputar mulus 360 derajat lengkap dengan alur refleksi cahaya realistis.
 - **Dynamic Ambient Glow & Artwork Breathing**: Pantulan cahaya radial di belakang album art yang membesar saat lagu diputar dan mengecil lembut saat dijeda.
 
@@ -68,6 +94,9 @@ Aplikasi pemutar musik mandiri berpenampilan modern dalam tema **Rose Pink & Obs
 - **Cadangan Universal (M3U & JSON Backup)**: Ekspor dan pulihkan seluruh lagu disukai dan playlist ke format berkas M3U standar atau JSON mandiri.
 - Pilihan Kualitas Audio (Hemat 64 kbps, Standar 128 kbps, Tinggi 160 kbps, dan Otomatis). Bitrate aktual mengikuti stream YouTube yang tersedia (umumnya maksimal ~160 kbps); label "320 kbps" pada versi lama tidak pernah tercapai.
 - **Smart Autoplay / Track Radio**: Saat antrean habis, aplikasi mengambil daftar dari endpoint `artist/{id}/radio` Deezer yang disusun berdasarkan karakter lagu (genre/era), bukan sekadar nama artis — jadi dari "Tulus" radio bisa menyeber ke genre lain, bukan numpuk lagu Tulus. Lagu yang sudah diputar dicatat di riwayat radio agar tidak diulang. Tersedia opsi "CAMPUR LAGU GLOBAL" untuk menyisipkan lagu chart global, dan dapat diaktifkan/dinonaktifkan lewat toggle di opsi pemutar.
+- **Lanjutkan Antrean Terakhir**: Antrean, lagu aktif, dan posisi playback disimpan otomatis setiap beberapa detik. Saat aplikasi dibuka lagi, mini player menampilkan lagu terakhir dan tombol putar melanjutkannya dari posisi tersimpan (tanpa autoplay paksa).
+- **Offset Lirik**: Geser sinkronisasi lirik ±0,5 detik per lagu bila lirik LRCLIB sedikit maju/mundur; offset tersimpan terpisah untuk tiap lagu.
+- **Cache Lirik Offline**: Lirik yang pernah diambil disimpan 30 hari (maksimal 120 lagu) sehingga tetap tampil tanpa koneksi.
 - Antrean Lagu Interaktif (Queue Sheet dengan fitur geser urutan / drag-and-drop).
 - Riwayat "Baru Saja Diputar" (Recently Played).
 
@@ -85,6 +114,9 @@ Aplikasi pemutar musik mandiri berpenampilan modern dalam tema **Rose Pink & Obs
 - Ekspor ke Folder Publik HP dengan penyematan ID3 Tag + Cover Art HD otomatis **untuk berkas MP3**; kontainer lain diekspor apa adanya dengan ekstensi yang benar (tidak ada lagi pemalsuan ekstensi `.mp3`).
 - Impor Playlist dari Tautan Spotify dan YouTube Playlist secara instan.
 - Pemindai File Audio Lokal HP (.mp3, .m4a, .flac, .wav, .aac, .ogg, .opus, .webm) langsung dari tab Koleksi.
+- **Pencarian dalam Koleksi**: Cari lagu berdasarkan judul, artis, atau album pada tab Lagu Disukai, Offline, dan File Lokal.
+- **Mode Unduh Hanya via Wi-Fi**: Mencegah kuota seluler terpakai; unduhan ditolak dengan pesan jelas saat perangkat memakai data seluler.
+- **Panel Penyimpanan**: Lihat ukuran cache audio (maks. 300 MB), jumlah/ukuran unduhan offline, dan sisa ruang perangkat. Tersedia tombol hapus cache dan hapus semua unduhan.
 - Bulk Download ("Download Semua") untuk seluruh lagu di playlist/liked sekaligus.
 - **Pengurutan Kronologis Lagu Disukai (LIFO / Timestamp)**: Menyimpan timestamp `likedAt` saat lagu disukai pengguna dan otomatis menempatkan lagu yang baru disukai di posisi teratas koleksi secara kronologis beserta tanggal penambahan.
 - Koleksi tersimpan lokal di perangkat: Lagu Disukai, Playlist, dan riwayat "Baru Saja Diputar" tetap ada antar-jalankan aplikasi (tanpa perlu akun).
@@ -108,6 +140,8 @@ lib/
 │  ├─ audio_format.dart      Deteksi kontainer dari magic bytes
 │  ├─ stable_hash.dart       Hash FNV-1a stabil untuk nama cache/ID lokal
 │  ├─ storage_permission_service.dart  Jembatan izin storage/notifikasi ke native Android
+│  ├─ storage_stats_service.dart  Ukuran cache, unduhan, dan ruang disk perangkat
+│  ├─ network_status_service.dart  Deteksi Wi-Fi untuk mode unduh hemat kuota
 │  ├─ local_library_service.dart  Penyimpanan koleksi (disukai + playlist) di perangkat
 │  ├─ local_audio_service.dart  Pindai file audio lokal
 │  ├─ id3_writer.dart        Penulis tag ID3v2.3 (TIT2/TPE1/TALB/APIC)
@@ -116,7 +150,7 @@ lib/
 └─ widgets/                  player_sheet, mini_player, queue_sheet, equalizer_sheet,
                               sleep_timer_dialog, playback_options_sheet, vinyl_disc_widget,
                               mini_visualizer, lyric_share_dialog, export_audio_dialog,
-                              import_playlist_dialog, app_logo, terms_dialog
+                              import_playlist_dialog, storage_sheet, app_logo, terms_dialog
 ```
 
 Catatan perilaku penting:
@@ -188,9 +222,11 @@ HTTPS. Jangan mengganti aturan ini dengan `android:usesCleartextTraffic="true"`.
 
    Pasang di HP: salin APK ke HP lalu ketuk file-nya (aktifkan "Install unknown apps" bila diminta).
 
-4. Untuk distribusi, push tag `v*` (misalnya `v1.1.1`). Workflow GitHub Actions
-   otomatis membangun dan melampirkan kedua APK ke **GitHub Releases**. Repo ini
-   tidak menyimpan binary APK.
+4. Untuk distribusi, push tag `v*` (misalnya `v1.2.0`). Workflow GitHub Actions
+   otomatis membangun kedua APK, membuat `SHA256SUMS.txt`, dan melampirkan
+   ketiganya ke **GitHub Releases**. Repo ini tidak menyimpan binary APK.
+   Signing resmi bisa diaktifkan lewat secret `ANDROID_KEYSTORE_BASE64` dan
+   kawan-kawannya (lihat [CONTRIBUTING.md](CONTRIBUTING.md#signing-rilis-opsional)).
 
 ## Pengujian
 
@@ -199,14 +235,16 @@ flutter analyze
 flutter test
 ```
 
-CI GitLab (`.gitlab-ci.yml`) menjalankan kedua perintah tersebut pada setiap
-merge request dan branch.
+CI GitHub Actions (`.github/workflows/build_apk.yml`) menjalankan kedua perintah
+tersebut pada setiap push/PR, lalu membangun APK per-ABI. GitLab CI
+(`.gitlab-ci.yml`) tetap tersedia sebagai jalur cadangan.
 
-Saat ini ada 99 tes yang lulus (4 tes integrasi CDN YouTube dilewati secara
+Saat ini ada 109 tes yang lulus (4 tes integrasi CDN YouTube dilewati secara
 default). Cakupannya: deteksi format audio, pemetaan kualitas bitrate dan
-pemilihan stream, parser lirik LRC, serialisasi `TrackModel`, penulisan tag ID3,
-pembuatan nama berkas ekspor, validasi `Range`/`Content-Range` (termasuk server
-lokal), backup JSON v1/v2, antrean "Putar Berikutnya", dan SponsorBlock.
+pemilihan stream, parser lirik LRC, serialisasi `LyricsLine`, format ukuran
+penyimpanan, serialisasi `TrackModel`, penulisan tag ID3, pembuatan nama berkas
+ekspor, validasi `Range`/`Content-Range` (termasuk server lokal), backup JSON
+v1/v2, antrean "Putar Berikutnya", preferensi unduhan, dan SponsorBlock.
 
 Tes integrasi CDN YouTube dilewati secara default. Jalankan dengan:
 
@@ -221,7 +259,7 @@ WAVE_NETWORK_TESTS=1 flutter test test/youtube_stream_source_test.dart
   perangkat.
 - Koneksi keluar hanya terjadi ke penyedia yang dibutuhkan fitur: Deezer
   (katalog/cover), YouTube (stream audio), LRCLIB (lirik), SponsorBlock
-  (segmen sponsor), dan GitLab (cek versi).
+  (segmen sponsor), dan GitHub (cek versi/rilis).
 - URL stream YouTube bersifat sementara dan tidak disimpan permanen.
 
 ## Lisensi, Merek & Pengembang

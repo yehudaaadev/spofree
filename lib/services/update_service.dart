@@ -12,12 +12,16 @@ class AppUpdateInfo {
   final String releaseNotes;
   final String downloadUrl;
 
+  /// Tautan berkas checksum SHA-256 untuk APK rilis (opsional).
+  final String checksumUrl;
+
   const AppUpdateInfo({
     required this.hasUpdate,
     this.latestVersionCode = 0,
     this.latestVersionName = '',
     this.releaseNotes = '',
     this.downloadUrl = '',
+    this.checksumUrl = '',
   });
 
   const AppUpdateInfo.noUpdate()
@@ -25,17 +29,18 @@ class AppUpdateInfo {
         latestVersionCode = 0,
         latestVersionName = '',
         releaseNotes = '',
-        downloadUrl = '';
+        downloadUrl = '',
+        checksumUrl = '';
 }
 
-/// Layanan pengecekan pembaruan aplikasi via halaman rilis GitLab.
+/// Layanan pengecekan pembaruan aplikasi via GitHub Releases.
 class UpdateService {
   UpdateService._();
   static final UpdateService instance = UpdateService._();
 
   /// Nilai cadangan; diperbarui dari package info saat aplikasi berjalan.
-  static int currentVersionCode = 6;
-  static String currentVersionName = '1.1.0';
+  static int currentVersionCode = 7;
+  static String currentVersionName = '1.2.0';
   static bool _versionLoaded = false;
 
   /// Membaca versi dari package info agar tidak melenceng dari pubspec.
@@ -56,7 +61,12 @@ class UpdateService {
       MethodChannel('com.david.spotify_pribadi/storage');
 
   static const String _versionUrl =
-      'https://gitlab.com/davidyehudaaa/spotify-gratis/-/raw/main/version.json';
+      'https://raw.githubusercontent.com/yehudaaadev/spofree/main/version.json';
+
+  /// Halaman rilis utama, dipakai sebagai cadangan bila metadata tidak memuat
+  /// tautan unduhan yang sah.
+  static const String releasePageUrl =
+      'https://github.com/yehudaaadev/spofree/releases/latest';
 
   final Dio _dio = Dio(
     BaseOptions(
@@ -66,7 +76,7 @@ class UpdateService {
     ),
   );
 
-  /// Memeriksa apakah ada versi yang lebih baru di repository GitLab.
+  /// Memeriksa apakah ada versi yang lebih baru di GitHub Releases.
   Future<AppUpdateInfo> checkForUpdate() async {
     try {
       final response = await _dio.get(_versionUrl);
@@ -78,19 +88,27 @@ class UpdateService {
         final latestCode = (data['versionCode'] as num?)?.toInt() ?? 0;
         final latestName = data['versionName'] as String? ?? '';
         final notes = data['releaseNotes'] as String? ?? '';
-        final downloadUrl = data['downloadUrl'] as String? ?? '';
+        final rawDownloadUrl = data['downloadUrl'] as String? ?? '';
+        final rawChecksumUrl = data['checksumUrl'] as String? ?? '';
         await loadVersionInfo();
 
         // Hanya tautan HTTPS dari repositori resmi yang boleh dibuka. Ini
         // mencegah pengalihan ke domain lain bila version.json disalahgunakan.
-        if (latestCode > currentVersionCode &&
-            isTrustedReleaseUrl(downloadUrl)) {
+        final downloadUrl = isTrustedReleaseUrl(rawDownloadUrl)
+            ? rawDownloadUrl
+            : releasePageUrl;
+        final checksumUrl = isTrustedReleaseUrl(rawChecksumUrl)
+            ? rawChecksumUrl
+            : '';
+
+        if (latestCode > currentVersionCode) {
           return AppUpdateInfo(
             hasUpdate: true,
             latestVersionCode: latestCode,
             latestVersionName: latestName,
             releaseNotes: notes,
             downloadUrl: downloadUrl,
+            checksumUrl: checksumUrl,
           );
         }
       }
@@ -102,14 +120,28 @@ class UpdateService {
 
   /// Hanya izinkan HTTPS ke repositori rilis resmi.
   ///
-  /// Halaman rilis (`/-/releases`) dan berkas di dalam repo sama-sama
-  /// diterima, tetapi domain dan awalan path harus persis milik repo ini.
+  /// Menerima halaman rilis, aset rilis, berkas mentah di branch `main`, dan
+  /// endpoint API untuk repo [githubRepo]. Domain dan awalan path harus persis
+  /// milik repo ini agar metadata yang disalahgunakan tidak bisa mengalihkan
+  /// pengguna ke situs lain.
+  static const String githubOwner = 'yehudaaadev';
+  static const String githubRepo = 'spofree';
+
   static bool isTrustedReleaseUrl(String url) {
     final uri = Uri.tryParse(url);
-    if (uri == null || uri.scheme != 'https' || uri.host != 'gitlab.com') {
-      return false;
+    if (uri == null || uri.scheme != 'https') return false;
+
+    final ownerRepo = '/$githubOwner/$githubRepo/';
+    switch (uri.host) {
+      case 'github.com':
+        return uri.path.startsWith(ownerRepo);
+      case 'raw.githubusercontent.com':
+        return uri.path.startsWith('/$githubOwner/$githubRepo/');
+      case 'api.github.com':
+        return uri.path.startsWith('/repos/$githubOwner/$githubRepo/');
+      default:
+        return false;
     }
-    return uri.path.startsWith('/davidyehudaaa/spotify-gratis/');
   }
 
   /// Membuka halaman rilis di browser default pengguna.

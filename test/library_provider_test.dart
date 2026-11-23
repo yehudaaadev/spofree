@@ -159,4 +159,31 @@ void main() {
       );
     });
   });
+
+  group('LibraryProvider download preferences', () {
+    test('mode hanya Wi-Fi nonaktif secara default dan tersimpan', () async {
+      final provider = LibraryProvider();
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      expect(provider.wifiOnlyDownloads, isFalse);
+      await provider.setWifiOnlyDownloads(true);
+      expect(provider.wifiOnlyDownloads, isTrue);
+
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getBool('wave_wifi_only_downloads'), isTrue);
+
+      await provider.setWifiOnlyDownloads(false);
+      expect(provider.wifiOnlyDownloads, isFalse);
+      expect(prefs.getBool('wave_wifi_only_downloads'), isFalse);
+    });
+
+    test('preferensi tersimpan dimuat saat provider dibuat', () async {
+      SharedPreferences.setMockInitialValues({
+        'wave_wifi_only_downloads': true,
+      });
+      final provider = LibraryProvider();
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(provider.wifiOnlyDownloads, isTrue);
+    });
+  });
 }

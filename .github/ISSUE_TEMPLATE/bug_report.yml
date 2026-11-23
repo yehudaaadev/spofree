@@ -1,0 +1,59 @@
+name: Laporan Bug
+description: Laporkan perilaku yang tidak sesuai
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Terima kasih sudah melapor. Jangan menyertakan data pribadi, tautan
+        unduhan berbayar, atau berkas audio berhak cipta.
+  - type: input
+    id: version
+    attributes:
+      label: Versi Wave Music
+      description: Terlihat di menu Informasi & Bantuan.
+      placeholder: "1.2.0 (build 7)"
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Android
+        - Windows Desktop
+        - Lainnya
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Perangkat & OS
+      placeholder: "Xiaomi Redmi Note 12, Android 14"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Langkah reproduksi
+      placeholder: |
+        1. Buka tab ...
+        2. Tekan ...
+        3. Terjadi ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Perilaku yang diharapkan
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log / screenshot
+      description: Tempel output `flutter run` bila ada. Jangan sertakan token atau data pribadi.
+      render: shell
+    validations:
+      required: false

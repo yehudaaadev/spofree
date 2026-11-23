@@ -1,0 +1,38 @@
+name: Usulan Fitur
+description: Usulkan fitur atau perbaikan pengalaman
+title: "[Fitur]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Jelaskan masalah yang ingin diselesaikan, bukan hanya nama fiturnya.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Masalah / kebutuhan
+      placeholder: "Saat ini saya harus ..."
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Usulan solusi
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatif yang sudah dipertimbangkan
+    validations:
+      required: false
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform utama
+      options:
+        - Android
+        - Windows Desktop
+        - Keduanya
+    validations:
+      required: true

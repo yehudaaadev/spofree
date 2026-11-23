@@ -266,4 +266,27 @@ class AudioCacheService {
       debugPrint('[AudioCacheService] pembersihan cache gagal: $e');
     }
   }
+
+  /// Ukuran total dan jumlah berkas cache audio saat ini.
+  Future<({int bytes, int files})> getCacheStats() async {
+    var bytes = 0;
+    var files = 0;
+    try {
+      final cacheDir = await _getCacheDir();
+      await for (final entity in cacheDir.list()) {
+        if (entity is! File) continue;
+        final name = entity.uri.pathSegments.last;
+        if (name.endsWith('.part') || name.endsWith('.tmp')) continue;
+        try {
+          bytes += await entity.length();
+          files++;
+        } catch (_) {
+          // Berkas bisa terhapus saat sedang dihitung; abaikan.
+        }
+      }
+    } catch (e) {
+      debugPrint('[AudioCacheService] gagal menghitung ukuran cache: $e');
+    }
+    return (bytes: bytes, files: files);
+  }
 }

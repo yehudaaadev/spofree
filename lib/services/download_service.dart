@@ -560,4 +560,43 @@ class DownloadService {
 
     await prefs.setStringList(_downloadKey, remaining);
   }
+
+  /// Ukuran total berkas audio offline yang tersimpan.
+  Future<int> getDownloadsSizeBytes() async {
+    var total = 0;
+    try {
+      final tracks = await getDownloadedTracks();
+      for (final track in tracks) {
+        try {
+          total += await File(track.localPath!).length();
+        } catch (_) {
+          // Berkas bisa terhapus di antara verifikasi dan penghitungan.
+        }
+      }
+    } catch (e) {
+      debugPrint('[DownloadService] gagal menghitung ukuran unduhan: $e');
+    }
+    return total;
+  }
+
+  /// Menghapus semua unduhan offline beserta berkasnya.
+  Future<void> removeAllDownloads() async {
+    try {
+      final tracks = await getDownloadedTracks();
+      for (final track in tracks) {
+        final path = track.localPath;
+        if (path == null || path.isEmpty) continue;
+        try {
+          final file = File(path);
+          if (await file.exists()) await file.delete();
+        } catch (e) {
+          debugPrint('[DownloadService] gagal menghapus ${track.title}: $e');
+        }
+      }
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_downloadKey);
+    } catch (e) {
+      debugPrint('[DownloadService] gagal menghapus semua unduhan: $e');
+    }
+  }
 }

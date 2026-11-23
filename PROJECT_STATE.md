@@ -24,7 +24,7 @@
 15. **Scoped Storage Permissions**: `READ_EXTERNAL_STORAGE` is capped at API 32 and `WRITE_EXTERNAL_STORAGE` at API 29. `MANAGE_EXTERNAL_STORAGE` is requested only for exporting to a user-chosen public folder or scanning local audio via `StoragePermissionService` (`com.david.spotify_pribadi/storage`); denied permission yields a clear error and an app-documents fallback.
 16. **Android 13+ Media Notifications**: `POST_NOTIFICATIONS` is declared and requested at runtime after onboarding, so media controls can appear on modern Android lockscreens and notification bars.
 17. **Audio Session & Becoming Noisy**: Listened to `session.becomingNoisyEventStream` and `session.interruptionEventStream` in `PlayerProvider` to pause on headset/Bluetooth disconnection and restore gracefully on call completion.
-18. **In-App Version Checker & Battery Guide**: Added `UpdateService` querying `version.json` directly from GitLab repository and intent launcher for Android battery optimization (Doze mode) settings.
+18. **In-App Version Checker & Battery Guide**: Added `UpdateService` querying `version.json` directly from the GitHub repository and intent launcher for Android battery optimization (Doze mode) settings.
 19. **SponsorBlock Integration**: Integrated `SponsorBlockService` querying `sponsor.ajay.app` for active YouTube track to automatically skip skit, offtopic dialogue, non-music sections, intro, and outro.
 20. **Two-Tier Priority Queue ("Play Next")**: Implemented user-priority queue (`playNext`) inserting tracks right after currently playing item before resuming background playlist context.
 21. **Universal Playlist Backup**: Implemented `PlaylistBackupService` for two-way export and restore via JSON and standard M3U (#EXTM3U) formats.
@@ -47,22 +47,30 @@
 38. **Backup Format v2**: JSON backups now store playlists by ID with `name` + `tracks`; v1 name-keyed backups remain readable. Restore merges by default (dedupes tracks) or replaces when requested. M3U exports standard YouTube URLs/local paths instead of internal IDs.
 39. **Stable Local IDs**: Local audio IDs use FNV-1a over the canonical path, and legacy `String.hashCode` IDs are migrated on library load so likes/playlists keep working across runs.
 40. **SponsorBlock Correctness**: `actionType` is honored (`skip`/`full` only; `mute`/`poi` are not auto-skipped), caches have a 6-hour TTL (1 hour for empty results), and entries are bounded to 200.
-41. **Update & Permission Hygiene**: App version comes from `package_info_plus`; update downloads must be HTTPS on the official GitLab path. Storage permissions are scoped by API level, and notification permission is requested at runtime.
+41. **Update & Permission Hygiene**: App version comes from `package_info_plus`; update links must be HTTPS on the official GitHub repository path. Storage permissions are scoped by API level, and notification permission is requested at runtime.
 42. **Bulk Download Feedback**: Failures are collected and shown in a summary snackbar instead of being silently logged.
-43. **Documentation & CI**: Added `LICENSE`, a GitLab CI job running `flutter analyze` + `flutter test`, privacy/legal notes, and removed public APK links. Network-dependent YouTube tests are opt-in via `WAVE_NETWORK_TESTS=1`.
+43. **Documentation & CI**: Added `LICENSE`, `CHANGELOG.md`, `CONTRIBUTING.md`, issue templates, Dependabot, and GitHub Actions running `flutter analyze` + `flutter test` before building per-ABI APKs. Network-dependent YouTube tests are opt-in via `WAVE_NETWORK_TESTS=1`.
+44. **GitHub Release Updater & Checksums**: `UpdateService` reads `version.json` from `raw.githubusercontent.com/yehudaaadev/spofree/main` and only opens HTTPS URLs under `github.com/yehudaaadev/spofree`, `raw.githubusercontent.com/yehudaaadev/spofree`, or `api.github.com/repos/yehudaaadev/spofree`. Releases include `SHA256SUMS.txt`; the update sheet exposes a checksum button.
+45. **Resumable Playback Session**: `PlayerProvider` debounces queue/index/position persistence to `SharedPreferences` (`wave_last_queue*`). On startup the last queue is restored without autoplay; pressing play resolves the stream at the saved position. Queue is capped to 100 stored entries around the active track.
+46. **Lyrics Cache & Offset**: `LyricsLine` is serializable; lyrics are cached per track for 30 days (max 120 entries). Per-track offset (±5 s in 0.5 s steps) is persisted and applied to `currentLyricsIndex` and tap-to-seek (`lyricSeekPosition`).
+47. **Storage Management Panel**: `StorageStatsService` combines `AudioCacheService` stats, downloaded-file sizes, and native Android `StatFs` free/total bytes. `StorageSheet` can clear the audio cache or all offline downloads and refreshes `LibraryProvider`.
+48. **Wi-Fi-Only Downloads**: `NetworkStatusService` queries native `ConnectivityManager` (`ACCESS_NETWORK_STATE`). `LibraryProvider` rejects single/bulk downloads on metered networks with a clear `lastDownloadError`, configurable from the app info sheet.
+49. **Release Signing in CI**: The workflow creates `android/key.properties` from `ANDROID_KEYSTORE_BASE64` and related secrets when available, otherwise falls back to debug signing.
 
 ## Known Limitations
-- Update flow opens the APK in a browser; it cannot verify a checksum because the browser performs the download. Only the trusted HTTPS GitLab URL is accepted.
+- Update flow opens the APK in a browser; it cannot download or verify the APK automatically. Checksums are provided for manual verification (`SHA256SUMS.txt`).
 - Export to public folders still uses `MANAGE_EXTERNAL_STORAGE` (sideloaded app). A full Storage Access Framework migration is future work.
 - Web is not a supported target (local file APIs and platform channels are mobile/desktop only).
 - Crossfade is a fade-out, not true overlap; `just_audio` does not expose per-channel pan.
-- APK binaries are no longer committed. `version.json` points to the GitLab Releases page, and the in-app update action only opens that page; the app cannot download or verify an APK automatically.
+- APK binaries are no longer committed. `version.json` points to GitHub Releases, and the in-app update action only opens that page.
 - The Android application ID, MethodChannel names, and preference keys still use `spotify_pribadi`/`spotube_*` for upgrade compatibility. Only user-facing branding was renamed to Wave Music.
+- `getStorageStats` reports the internal data partition on Android; desktop builds show cache/download sizes without free-space statistics.
+- Release APKs built locally without `android/key.properties` are debug-signed. CI signing requires the four Android secrets documented in `CONTRIBUTING.md`.
 
 ## Verification Status
-- Version: 1.1.0 (Build 6) — dibaca otomatis dari `package_info_plus` saat runtime.
+- Version: 1.2.0 (Build 7) — dibaca otomatis dari `package_info_plus` saat runtime.
 - Static Analysis: `flutter analyze` passed (0 issues).
-- Unit Tests: `flutter test` passed (99 tests, 4 network tests skipped by default).
-- CI: `.gitlab-ci.yml` runs `flutter analyze` + `flutter test` on merge requests and branches.
+- Unit Tests: `flutter test` passed (109 tests, 4 network tests skipped by default).
+- CI: `.github/workflows/build_apk.yml` runs `flutter analyze` + `flutter test` on pushes/PRs and publishes per-ABI APKs plus `SHA256SUMS.txt` on `v*` tags. `.gitlab-ci.yml` remains as a fallback.
 - Build debug berhasil: Windows (`build\windows\x64\runner\Debug\spotify_pribadi.exe`) dan Android (`build\app\outputs\flutter-apk\app-debug.apk`). Build rilis split-per-ABI dapat dibuat dengan `flutter build apk --release --split-per-abi`.
 - Catatan: APK hasil build lokal belum diuji ulang pada perangkat fisik dalam sesi ini; verifikasi runtime Android tetap diperlukan sebelum rilis.

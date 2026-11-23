@@ -219,7 +219,8 @@ class TrackOptionsSheet extends StatelessWidget {
                           content: Text(
                             success
                                 ? 'Berhasil mengunduh "${track.title}" untuk offline'
-                                : 'Gagal mengunduh "${track.title}". Periksa koneksi internet.',
+                                : (library.lastDownloadError ??
+                                    'Gagal mengunduh "${track.title}". Periksa koneksi internet.'),
                             style: const TextStyle(color: Colors.white),
                           ),
                           duration: const Duration(seconds: 3),

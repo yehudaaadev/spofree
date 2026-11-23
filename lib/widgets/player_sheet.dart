@@ -639,6 +639,30 @@ class _PlayerSheetState extends State<PlayerSheet> {
     );
   }
 
+  Widget _buildOffsetButton({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onPressed,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          width: 24,
+          height: 24,
+          decoration: BoxDecoration(
+            color: AppTheme.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppTheme.divider, width: 0.8),
+          ),
+          child: Icon(icon, size: 14, color: AppTheme.textSecondary),
+        ),
+      ),
+    );
+  }
+
   Widget _buildLyricsView(PlayerProvider player, int currentLyricIdx, TrackModel track) {
     if (player.isLoadingLyrics) {
       return const Center(
@@ -706,6 +730,59 @@ class _PlayerSheetState extends State<PlayerSheet> {
               ],
             ),
           ),
+          // Kontrol offset sinkronisasi lirik (per lagu, tersimpan).
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 0, 4, 4),
+            child: Row(
+              children: [
+                const Text(
+                  'Sinkron',
+                  style: TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const Spacer(),
+                _buildOffsetButton(
+                  icon: Icons.remove_rounded,
+                  tooltip: 'Lirik lebih lambat 0,5 detik',
+                  onPressed: () => player.setLyricsOffset(-500),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  child: Text(
+                    '${player.lyricsOffsetMs >= 0 ? '+' : ''}'
+                    '${(player.lyricsOffsetMs / 1000).toStringAsFixed(1)} dtk',
+                    style: const TextStyle(
+                      color: AppTheme.primaryRoseLight,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                _buildOffsetButton(
+                  icon: Icons.add_rounded,
+                  tooltip: 'Lirik lebih cepat 0,5 detik',
+                  onPressed: () => player.setLyricsOffset(500),
+                ),
+                if (player.lyricsOffsetMs != 0) ...[
+                  const SizedBox(width: 4),
+                  GestureDetector(
+                    onTap: player.resetLyricsOffset,
+                    child: const Text(
+                      'Reset',
+                      style: TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 10,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
           const Divider(color: AppTheme.divider, height: 1),
           const SizedBox(height: 4),
 
@@ -741,7 +818,7 @@ class _PlayerSheetState extends State<PlayerSheet> {
                     behavior: HitTestBehavior.opaque,
                     onTap: () {
                       HapticFeedback.selectionClick();
-                      player.seek(line.timestamp);
+                      player.seek(player.lyricSeekPosition(line.timestamp));
                       if (!player.isPlaying) {
                         player.resume();
                       }

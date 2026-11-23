@@ -1,6 +1,7 @@
 {
-  "versionCode": 6,
-  "versionName": "1.1.0",
-  "releaseNotes": "Tema visual Rose & Obsidian, audio Windows Desktop, peringkat pencarian kanonikal dengan kartu Hasil Teratas, dan menu opsi titik tiga (Like, Download offline instan, Tambah ke Playlist).",
-  "downloadUrl": "https://gitlab.com/davidyehudaaa/spotify-gratis/-/releases"
+  "versionCode": 7,
+  "versionName": "1.2.0",
+  "releaseNotes": "Pembaruan kini dicek langsung dari GitHub Releases. Ada panel Penyimpanan (hapus cache/unduhan), pencarian dalam koleksi, lanjutan antrean terakhir, cache lirik offline dengan pengatur offset, opsi unduh hanya via Wi-Fi, dan checksum SHA-256 untuk verifikasi APK.",
+  "downloadUrl": "https://github.com/yehudaaadev/spofree/releases/latest",
+  "checksumUrl": "https://github.com/yehudaaadev/spofree/releases/latest/download/SHA256SUMS.txt"
 }

@@ -52,6 +52,25 @@ Baris dua
     });
   });
 
+  group('LyricsLine serialization', () {
+    test('bolak-balik map mempertahankan waktu dan teks', () {
+      const line = LyricsLine(
+        timestamp: Duration(minutes: 1, seconds: 2, milliseconds: 345),
+        text: 'Baris lirik',
+      );
+
+      final restored = LyricsLine.fromMap(line.toMap());
+      expect(restored.timestamp, line.timestamp);
+      expect(restored.text, line.text);
+    });
+
+    test('map tanpa field memakai nilai aman', () {
+      final restored = LyricsLine.fromMap(const {});
+      expect(restored.timestamp, Duration.zero);
+      expect(restored.text, isEmpty);
+    });
+  });
+
   group('LyricsService.sanitizeQueryTitle', () {
     test('mempertahankan kata dengan tanda hubung', () {
       expect(LyricsService.sanitizeQueryTitle('Spider-Man'), 'Spider-Man');

@@ -7,6 +7,7 @@ import '../models/track_model.dart';
 import '../services/download_service.dart';
 import '../services/local_library_service.dart';
 import '../services/music_service.dart';
+import '../services/network_status_service.dart';
 import '../services/playlist_backup_service.dart';
 import '../services/stable_hash.dart';
 
@@ -50,6 +51,7 @@ class LibraryProvider with ChangeNotifier {
     refreshLibrary();
     refreshDownloaded();
     _loadAudioQuality();
+    _loadDownloadPreferences();
   }
 
   Future<void> _loadAudioQuality() async {
@@ -86,6 +88,50 @@ class LibraryProvider with ChangeNotifier {
   List<TrackModel> get downloadedTracks => _downloadedTracks;
 
   String get audioQuality => _audioQuality;
+
+  bool _wifiOnlyDownloads = false;
+  String? _lastDownloadError;
+
+  /// True bila unduhan offline hanya boleh berjalan di Wi-Fi/Ethernet.
+  bool get wifiOnlyDownloads => _wifiOnlyDownloads;
+
+  /// Alasan terakhir unduhan ditolak, mis. karena mode Wi-Fi saja.
+  String? get lastDownloadError => _lastDownloadError;
+
+  Future<void> _loadDownloadPreferences() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _wifiOnlyDownloads =
+          prefs.getBool('wave_wifi_only_downloads') ?? _wifiOnlyDownloads;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('[Library] gagal memuat preferensi unduhan: $e');
+    }
+  }
+
+  Future<void> setWifiOnlyDownloads(bool value) async {
+    if (_wifiOnlyDownloads == value) return;
+    _wifiOnlyDownloads = value;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('wave_wifi_only_downloads', value);
+    } catch (e) {
+      debugPrint('[Library] gagal menyimpan preferensi Wi-Fi: $e');
+    }
+  }
+
+  /// Menolak unduhan bila mode "Hanya Wi-Fi" aktif dan perangkat memakai
+  /// jaringan seluler. Mengembalikan pesan alasan, atau null bila boleh lanjut.
+  Future<String?> _checkDownloadNetwork() async {
+    _lastDownloadError = null;
+    if (!_wifiOnlyDownloads) return null;
+    if (await NetworkStatusService.isOnWifi()) return null;
+    _lastDownloadError =
+        'Unduhan dibatalkan: mode "Hanya Wi-Fi" aktif. Sambungkan ke Wi-Fi atau matikan mode tersebut.';
+    notifyListeners();
+    return _lastDownloadError;
+  }
 
   Future<void> setAudioQuality(String quality) async {
     if (_audioQuality == quality) return;
@@ -348,8 +394,18 @@ class LibraryProvider with ChangeNotifier {
   List<String> get lastBulkDownloadFailures => _lastBulkDownloadFailures;
 
   Future<void> bulkDownloadTracks(List<TrackModel> tracks) async {
+    // Bersihkan status lama agar UI tidak menampilkan alasan blokir atau
+    // kegagalan dari percobaan sebelumnya.
+    _lastDownloadError = null;
+    _lastBulkDownloadFailures = const [];
+
     final toDownload = tracks.where((t) => !isDownloaded(t.id)).toList();
     if (toDownload.isEmpty || _isBulkDownloading) return;
+
+    if (await _checkDownloadNetwork() != null) {
+      _lastBulkDownloadFailures = const [];
+      return;
+    }
 
     _isBulkDownloading = true;
     _bulkTotalCount = toDownload.length;
@@ -393,8 +449,11 @@ class LibraryProvider with ChangeNotifier {
 
   /// Unduh 1 lagu langsung ke penyimpanan offline lokal.
   Future<bool> downloadSingleTrack(TrackModel track) async {
+    _lastDownloadError = null;
     if (isDownloaded(track.id)) return true;
     if (_downloadingTrackIds.contains(track.id)) return false;
+
+    if (await _checkDownloadNetwork() != null) return false;
 
     _downloadingTrackIds.add(track.id);
     notifyListeners();

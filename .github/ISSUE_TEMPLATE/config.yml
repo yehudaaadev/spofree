@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Unduh APK terbaru
+    url: https://github.com/yehudaaadev/spofree/releases/latest
+    about: Halaman rilis resmi Wave Music.
+  - name: Panduan kontribusi
+    url: https://github.com/yehudaaadev/spofree/blob/main/CONTRIBUTING.md
+    about: Cara menjalankan, menguji, dan merilis proyek.

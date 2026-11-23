@@ -11,6 +11,7 @@ import '../services/update_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/export_audio_dialog.dart';
 import '../widgets/import_playlist_dialog.dart';
+import '../widgets/storage_sheet.dart';
 import '../widgets/track_options_sheet.dart';
 
 class LibraryTab extends StatefulWidget {
@@ -24,6 +25,22 @@ class _LibraryTabState extends State<LibraryTab> {
   int _selectedFilter = 0; // 0: Liked, 1: Downloaded, 2: Playlists, 3: File Lokal
   List<TrackModel> _localFiles = [];
   bool _isLoadingLocal = false;
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  bool _matchesQuery(TrackModel track) {
+    final query = _searchQuery.trim().toLowerCase();
+    if (query.isEmpty) return true;
+    return track.title.toLowerCase().contains(query) ||
+        track.artist.toLowerCase().contains(query) ||
+        track.album.toLowerCase().contains(query);
+  }
 
   // 0: Terbaru (Default), 1: Judul (A-Z), 2: Artis (A-Z), 3: Durasi (Terpanjang)
   int _sortMode = 0;
@@ -282,7 +299,52 @@ class _LibraryTabState extends State<LibraryTab> {
               ),
             ),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
+
+            if (_selectedFilter != 2)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                child: TextField(
+                  controller: _searchController,
+                  onChanged: (value) => setState(() => _searchQuery = value),
+                  style: const TextStyle(color: Colors.white, fontSize: 13),
+                  decoration: InputDecoration(
+                    hintText: 'Cari judul, artis, atau album…',
+                    hintStyle: const TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 13,
+                    ),
+                    prefixIcon: const Icon(
+                      Icons.search_rounded,
+                      color: AppTheme.textSecondary,
+                      size: 20,
+                    ),
+                    suffixIcon: _searchQuery.isEmpty
+                        ? null
+                        : IconButton(
+                            tooltip: 'Hapus pencarian',
+                            icon: const Icon(
+                              Icons.close_rounded,
+                              color: AppTheme.textSecondary,
+                              size: 18,
+                            ),
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() => _searchQuery = '');
+                            },
+                          ),
+                    filled: true,
+                    fillColor: AppTheme.card,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+              ),
+
+            const SizedBox(height: 4),
 
             // Content Area
             Expanded(
@@ -359,7 +421,33 @@ class _LibraryTabState extends State<LibraryTab> {
       );
     }
 
-    final displayTracks = _applySort(tracks);
+    final displayTracks = _applySort(
+      tracks.where(_matchesQuery).toList(),
+    );
+
+    if (displayTracks.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.search_off_rounded,
+              size: 54,
+              color: AppTheme.textSecondary,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Tidak ada hasil untuk "${_searchQuery.trim()}"',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
     return Column(
       children: [
@@ -373,7 +461,9 @@ class _LibraryTabState extends State<LibraryTab> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    '${tracks.length} lagu',
+                    _searchQuery.trim().isEmpty
+                        ? '${tracks.length} lagu'
+                        : '${displayTracks.length} dari ${tracks.length} lagu',
                     style: const TextStyle(
                       fontSize: 13,
                       color: AppTheme.textSecondary,
@@ -431,6 +521,13 @@ class _LibraryTabState extends State<LibraryTab> {
                           : () async {
                               await library.bulkDownloadTracks(displayTracks);
                               if (!mounted) return;
+                              final blockedReason = library.lastDownloadError;
+                              if (blockedReason != null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text(blockedReason)),
+                                );
+                                return;
+                              }
                               final failures =
                                   library.lastBulkDownloadFailures;
                               if (failures.isEmpty) {
@@ -723,6 +820,18 @@ class _LibraryTabState extends State<LibraryTab> {
       );
     }
 
+    final displayFiles = _localFiles.where(_matchesQuery).toList();
+
+    if (displayFiles.isEmpty && _searchQuery.trim().isNotEmpty) {
+      return Center(
+        child: Text(
+          'Tidak ada file lokal untuk "${_searchQuery.trim()}"',
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: AppTheme.textSecondary, fontSize: 14),
+        ),
+      );
+    }
+
     return Column(
       children: [
         Padding(
@@ -731,7 +840,7 @@ class _LibraryTabState extends State<LibraryTab> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                '${_localFiles.length} file ditemukan',
+                '${displayFiles.length} file ditemukan',
                 style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13),
               ),
               Row(
@@ -742,8 +851,8 @@ class _LibraryTabState extends State<LibraryTab> {
                       'Putar Semua',
                       style: TextStyle(color: AppTheme.primaryGreen, fontWeight: FontWeight.bold, fontSize: 12),
                     ),
-                    onPressed: _localFiles.isNotEmpty
-                        ? () => player.playTrack(_localFiles.first, queue: _localFiles)
+                    onPressed: displayFiles.isNotEmpty
+                        ? () => player.playTrack(displayFiles.first, queue: displayFiles)
                         : null,
                   ),
                   IconButton(
@@ -758,10 +867,10 @@ class _LibraryTabState extends State<LibraryTab> {
         ),
         Expanded(
           child: ListView.builder(
-            itemCount: _localFiles.length,
+            itemCount: displayFiles.length,
             padding: const EdgeInsets.symmetric(horizontal: 12),
             itemBuilder: (ctx, index) {
-              final track = _localFiles[index];
+              final track = displayFiles[index];
               final ext = track.localPath?.split('.').last.toUpperCase() ?? 'AUDIO';
               return ListTile(
                 leading: Container(
@@ -808,7 +917,7 @@ class _LibraryTabState extends State<LibraryTab> {
                     );
                   },
                 ),
-                onTap: () => player.playTrack(track, queue: _localFiles),
+                onTap: () => player.playTrack(track, queue: displayFiles),
               );
             },
           ),
@@ -889,6 +998,66 @@ class _LibraryTabState extends State<LibraryTab> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
+                          'Penyimpanan & Jaringan',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Consumer<LibraryProvider>(
+                          builder: (context, library, _) => SwitchListTile(
+                            contentPadding: EdgeInsets.zero,
+                            dense: true,
+                            value: library.wifiOnlyDownloads,
+                            activeThumbColor: AppTheme.primaryGreen,
+                            title: const Text(
+                              'Unduh hanya via Wi-Fi',
+                              style: TextStyle(color: Colors.white, fontSize: 13),
+                            ),
+                            subtitle: const Text(
+                              'Mencegah kuota seluler terpakai saat mengunduh lagu offline.',
+                              style: TextStyle(
+                                color: Colors.white54,
+                                fontSize: 11,
+                              ),
+                            ),
+                            onChanged: (value) =>
+                                library.setWifiOnlyDownloads(value),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            side: const BorderSide(color: Color(0xFF484848)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          onPressed: () => StorageSheet.show(context),
+                          icon: const Icon(Icons.storage_rounded, size: 16),
+                          label: const Text(
+                            'Kelola Penyimpanan',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF282828),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFF383838)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
                           'Pembaruan Aplikasi',
                           style: TextStyle(
                             fontSize: 14,
@@ -909,11 +1078,13 @@ class _LibraryTabState extends State<LibraryTab> {
                           )
                         else
                           const Text(
-                            'Periksa rilis terbaru langsung dari repository GitLab.',
+                            'Periksa rilis terbaru langsung dari repository GitHub.',
                             style: TextStyle(fontSize: 12, color: Colors.white70),
                           ),
                         const SizedBox(height: 12),
-                        Row(
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
                           children: [
                             ElevatedButton.icon(
                               style: ElevatedButton.styleFrom(
@@ -929,7 +1100,7 @@ class _LibraryTabState extends State<LibraryTab> {
                                   : () async {
                                       setSheetState(() {
                                         isChecking = true;
-                                        statusMessage = 'Memeriksa ke server GitLab...';
+                                        statusMessage = 'Memeriksa ke GitHub Releases...';
                                       });
                                       final info = await UpdateService.instance.checkForUpdate();
                                       setSheetState(() {
@@ -952,8 +1123,7 @@ class _LibraryTabState extends State<LibraryTab> {
                                   : const Icon(Icons.refresh, size: 16),
                               label: const Text('Cek Update', style: TextStyle(fontSize: 12)),
                             ),
-                            if (updateInfo?.hasUpdate == true) ...[
-                              const SizedBox(width: 8),
+                            if (updateInfo?.hasUpdate == true)
                               ElevatedButton(
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: AppTheme.primaryGreen,
@@ -971,7 +1141,27 @@ class _LibraryTabState extends State<LibraryTab> {
                                   style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                                 ),
                               ),
-                            ],
+                            if (updateInfo?.hasUpdate == true &&
+                                updateInfo!.checksumUrl.isNotEmpty)
+                              OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.white,
+                                  side: const BorderSide(color: Color(0xFF484848)),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                                onPressed: () {
+                                  UpdateService.instance.openReleasePage(
+                                    updateInfo!.checksumUrl,
+                                  );
+                                },
+                                icon: const Icon(Icons.verified_outlined, size: 15),
+                                label: const Text(
+                                  'Checksum SHA-256',
+                                  style: TextStyle(fontSize: 12),
+                                ),
+                              ),
                           ],
                         ),
                       ],

@@ -37,6 +37,20 @@ class PlayerProvider with ChangeNotifier {
 
   static const String _recentKey = 'spotube_recently_played';
 
+  /// Kunci penyimpanan sesi playback terakhir (antrean + posisi).
+  static const String _queueKey = 'wave_last_queue';
+  static const String _queueIndexKey = 'wave_last_queue_index';
+  static const String _queuePositionKey = 'wave_last_position_ms';
+
+  /// Timer debounce agar penulisan SharedPreferences tidak terjadi setiap
+  /// frame saat posisi playback berubah.
+  Timer? _persistTimer;
+  Duration _lastPersistedPosition = Duration.zero;
+
+  /// True bila antrean dipulihkan dari sesi sebelumnya dan sumber audio belum
+  /// dimuat. `resume()` akan memuat ulang lagu pada posisi tersimpan.
+  bool _restoredSession = false;
+
   /// Batas jumlah lagu hasil autoplay yang ditambahkan ke antrean.
   static const int _maxAutoplayTracks = 15;
 
@@ -66,6 +80,11 @@ class PlayerProvider with ChangeNotifier {
   List<LyricsLine> _lyrics = [];
   bool _isLoadingLyrics = false;
   int _lyricsToken = 0;
+  int _lyricsOffsetMs = 0;
+
+  /// Batas usia cache lirik sebelum diambil ulang dari jaringan.
+  static const Duration _lyricsCacheMaxAge = Duration(days: 30);
+  static const int _lyricsCacheMaxEntries = 120;
 
   bool _isDownloading = false;
   double _downloadProgress = 0.0;
@@ -172,6 +191,7 @@ class PlayerProvider with ChangeNotifier {
     await _loadPreferences();
     await _initEqualizer();
     await _loadRecentlyPlayed();
+    await _restorePlaybackState();
     // Terapkan efek yang tersimpan ke player yang baru dibuat. Tanpa ini,
     // kecepatan/pitch/loop kembali ke default setiap aplikasi dibuka.
     try {
@@ -195,8 +215,15 @@ class PlayerProvider with ChangeNotifier {
   LoopMode get loopMode => _loopMode;
   List<LyricsLine> get lyrics => _lyrics;
   bool get isLoadingLyrics => _isLoadingLyrics;
+
+  /// Offset sinkronisasi lirik dalam milidetik (positif = lirik lebih cepat).
+  int get lyricsOffsetMs => _lyricsOffsetMs;
+  Duration get lyricsOffset => Duration(milliseconds: _lyricsOffsetMs);
   bool get isDownloading => _isDownloading;
   double get downloadProgress => _downloadProgress;
+
+  /// True bila antrean terakhir dipulihkan dan audio belum dimuat.
+  bool get hasRestoredSession => _restoredSession;
 
   double get playbackSpeed => _playbackSpeed;
   bool get hasActiveSleepTimer => _sleepTimer != null || _sleepAtSongEnd;
@@ -363,6 +390,9 @@ class PlayerProvider with ChangeNotifier {
     });
 
     _positionSub = _player.positionStream.listen((pos) {
+      // Player yang masih idle (belum ada sumber audio) bisa memancarkan
+      // posisi 0. Jangan biarkan itu menimpa posisi sesi yang dipulihkan.
+      if (_restoredSession && _player.audioSource == null) return;
       _position = pos;
       if (_sponsorBlockEnabled && _activeSegments.isNotEmpty) {
         _checkSponsorSegments(pos);
@@ -374,6 +404,12 @@ class PlayerProvider with ChangeNotifier {
           _isPlaying &&
           _currentIndex + 1 < _queue.length) {
         _triggerCrossfade();
+      }
+      // Simpan posisi secara berkala (bukan tiap frame) agar sesi bisa
+      // dilanjutkan setelah aplikasi ditutup paksa.
+      if ((pos - _lastPersistedPosition).abs() >= const Duration(seconds: 5)) {
+        _lastPersistedPosition = pos;
+        _schedulePersistPlaybackState();
       }
       notifyListeners();
     });
@@ -657,6 +693,81 @@ class PlayerProvider with ChangeNotifier {
     await prefs.setStringList(_recentKey, raw);
   }
 
+  /// Menjadwalkan penyimpanan sesi playback dengan debounce singkat.
+  void _schedulePersistPlaybackState() {
+    _persistTimer?.cancel();
+    _persistTimer = Timer(
+      const Duration(milliseconds: 800),
+      () => unawaited(_persistPlaybackState()),
+    );
+  }
+
+  /// Menyimpan antrean, indeks, dan posisi lagu agar bisa dilanjutkan lagi.
+  ///
+  /// Antrean dibatasi 100 lagu di sekitar lagu aktif supaya ukuran
+  /// SharedPreferences tetap wajar meski antrean mencapai ratusan lagu.
+  Future<void> _persistPlaybackState() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (_queue.isEmpty || _currentTrack == null || _currentIndex < 0) {
+        await prefs.remove(_queueKey);
+        await prefs.remove(_queueIndexKey);
+        await prefs.remove(_queuePositionKey);
+        return;
+      }
+
+      final start = math.max(0, _currentIndex - 50);
+      final end = math.min(_queue.length, start + 100);
+      final slice = _queue.sublist(start, end);
+      await prefs.setStringList(
+        _queueKey,
+        slice.map((track) => track.toJson()).toList(),
+      );
+      await prefs.setInt(_queueIndexKey, _currentIndex - start);
+      await prefs.setInt(_queuePositionKey, _position.inMilliseconds);
+    } catch (e) {
+      debugPrint('[Player] gagal menyimpan sesi playback: $e');
+    }
+  }
+
+  /// Memulihkan antrean terakhir tanpa langsung memutar audio.
+  Future<void> _restorePlaybackState() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getStringList(_queueKey);
+      if (raw == null || raw.isEmpty) return;
+
+      final restored = <TrackModel>[];
+      for (final item in raw) {
+        try {
+          restored.add(TrackModel.fromJson(item));
+        } catch (e) {
+          debugPrint('[Player] entri antrean tersimpan rusak dilewati: $e');
+        }
+      }
+      if (restored.isEmpty) return;
+
+      var index = prefs.getInt(_queueIndexKey) ?? 0;
+      if (index < 0 || index >= restored.length) index = 0;
+
+      final track = restored[index];
+      final savedMs = prefs.getInt(_queuePositionKey) ?? 0;
+      final maxMs = track.durationMs > 0 ? track.durationMs : savedMs;
+      _queue = restored;
+      _currentIndex = index;
+      _currentTrack = track;
+      _position = Duration(milliseconds: savedMs.clamp(0, maxMs));
+      _duration = Duration(milliseconds: track.durationMs);
+      _isPlaying = false;
+      _restoredSession = true;
+      debugPrint(
+        '[Player] sesi dipulihkan: "${track.title}" @ ${_position.inSeconds}s',
+      );
+    } catch (e) {
+      debugPrint('[Player] gagal memulihkan sesi playback: $e');
+    }
+  }
+
   /// Memutar sebuah lagu.
   ///
   /// Permintaan diantrikan pada [_playChain] sehingga hanya satu pergantian
@@ -753,6 +864,8 @@ class PlayerProvider with ChangeNotifier {
     _isLoadingAudio = true;
     _position = initialPosition ?? Duration.zero;
     _duration = Duration(milliseconds: track.durationMs);
+    _restoredSession = false;
+    _schedulePersistPlaybackState();
 
     // Cadangan MP4/AAC hanya berlaku untuk lagu yang bermasalah saja.
     if (_mp4FallbackTrackId != null && _mp4FallbackTrackId != track.id) {
@@ -919,14 +1032,33 @@ class PlayerProvider with ChangeNotifier {
     final requestToken = ++_lyricsToken;
     _isLoadingLyrics = true;
     _lyrics = [];
+    _lyricsOffsetMs = 0;
+    notifyListeners();
+
+    final prefs = await SharedPreferences.getInstance();
+    final savedOffset = (prefs.getInt('wave_lyrics_offset_${track.id}') ?? 0)
+        .clamp(-5000, 5000)
+        .toInt();
+
+    // Bila lagu sudah berganti saat preferensi dibaca, jangan menimpa offset
+    // lagu yang baru dengan nilai lagu lama.
+    if (requestToken != _lyricsToken) return;
+    _lyricsOffsetMs = savedOffset;
     notifyListeners();
 
     List<LyricsLine> result = [];
     try {
-      result = await _lyricsService.fetchLyrics(
-        title: track.title,
-        artist: track.artist,
-      );
+      result = await _readCachedLyrics(prefs, track.id);
+      if (result.isEmpty) {
+        if (requestToken != _lyricsToken) return;
+        result = await _lyricsService.fetchLyrics(
+          title: track.title,
+          artist: track.artist,
+        );
+        if (result.isNotEmpty) {
+          await _writeCachedLyrics(prefs, track.id, result);
+        }
+      }
     } catch (e) {
       debugPrint('[Player] lirik gagal dimuat: $e');
     }
@@ -941,18 +1073,146 @@ class PlayerProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  /// Membaca lirik dari cache lokal bila masih segar.
+  Future<List<LyricsLine>> _readCachedLyrics(
+    SharedPreferences prefs,
+    String trackId,
+  ) async {
+    try {
+      final raw = prefs.getString('wave_lyrics_cache_$trackId');
+      if (raw == null) return const [];
+      final decoded = jsonDecode(raw) as Map<String, dynamic>;
+      final savedAt = (decoded['savedAt'] as num?)?.toInt() ?? 0;
+      final age = DateTime.now().millisecondsSinceEpoch - savedAt;
+      if (age < 0 || age > _lyricsCacheMaxAge.inMilliseconds) {
+        return const [];
+      }
+      final lines = (decoded['lines'] as List<dynamic>? ?? [])
+          .whereType<Map<String, dynamic>>()
+          .map(LyricsLine.fromMap)
+          .toList();
+      return lines;
+    } catch (e) {
+      debugPrint('[Player] cache lirik rusak dilewati: $e');
+      return const [];
+    }
+  }
+
+  /// Menyimpan lirik ke cache lokal dan membatasi jumlah entri.
+  Future<void> _writeCachedLyrics(
+    SharedPreferences prefs,
+    String trackId,
+    List<LyricsLine> lines,
+  ) async {
+    try {
+      await prefs.setString(
+        'wave_lyrics_cache_$trackId',
+        jsonEncode({
+          'savedAt': DateTime.now().millisecondsSinceEpoch,
+          'lines': lines.map((line) => line.toMap()).toList(),
+        }),
+      );
+      await _pruneLyricsCache(prefs);
+    } catch (e) {
+      debugPrint('[Player] gagal menyimpan cache lirik: $e');
+    }
+  }
+
+  Future<void> _pruneLyricsCache(SharedPreferences prefs) async {
+    final keys = prefs
+        .getKeys()
+        .where((key) => key.startsWith('wave_lyrics_cache_'))
+        .toList();
+    if (keys.length <= _lyricsCacheMaxEntries) return;
+
+    final entries = <({String key, int savedAt})>[];
+    for (final key in keys) {
+      try {
+        final decoded =
+            jsonDecode(prefs.getString(key) ?? '{}') as Map<String, dynamic>;
+        entries.add((
+          key: key,
+          savedAt: (decoded['savedAt'] as num?)?.toInt() ?? 0,
+        ));
+      } catch (_) {
+        entries.add((key: key, savedAt: 0));
+      }
+    }
+    entries.sort((a, b) => a.savedAt.compareTo(b.savedAt));
+    final excess = entries.length - _lyricsCacheMaxEntries;
+    for (var i = 0; i < excess; i++) {
+      await prefs.remove(entries[i].key);
+    }
+  }
+
+  /// Menggeser sinkronisasi lirik sebesar [deltaMs] milidetik.
+  Future<void> setLyricsOffset(int deltaMs) async {
+    final track = _currentTrack;
+    _lyricsOffsetMs = (_lyricsOffsetMs + deltaMs).clamp(-5000, 5000).toInt();
+    notifyListeners();
+    if (track == null) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt('wave_lyrics_offset_${track.id}', _lyricsOffsetMs);
+    } catch (e) {
+      debugPrint('[Player] gagal menyimpan offset lirik: $e');
+    }
+  }
+
+  Future<void> resetLyricsOffset() async {
+    final track = _currentTrack;
+    _lyricsOffsetMs = 0;
+    notifyListeners();
+    if (track == null) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('wave_lyrics_offset_${track.id}');
+    } catch (e) {
+      debugPrint('[Player] gagal mereset offset lirik: $e');
+    }
+  }
+
+  /// Posisi seek yang tepat untuk baris lirik dengan [timestamp].
+  Duration lyricSeekPosition(Duration timestamp) {
+    final target = timestamp - lyricsOffset;
+    return target < Duration.zero ? Duration.zero : target;
+  }
+
   int get currentLyricsIndex {
     if (_lyrics.isEmpty) return -1;
+    final effectivePosition = _position + lyricsOffset;
     for (int i = _lyrics.length - 1; i >= 0; i--) {
-      if (_position >= _lyrics[i].timestamp) {
+      if (effectivePosition >= _lyrics[i].timestamp) {
         return i;
       }
     }
     return 0;
   }
 
-  Future<void> resume() async => await _player.play();
-  Future<void> pause() async => await _player.pause();
+  Future<void> resume() async {
+    // Sesi yang dipulihkan belum punya sumber audio. Muat ulang lagu pada
+    // posisi terakhir, bukan memanggil play() pada player kosong.
+    if (_player.audioSource == null && _currentTrack != null) {
+      final track = _currentTrack!;
+      final resumePosition = _position;
+      _restoredSession = false;
+      await playTrack(
+        track,
+        queue: _queue,
+        explicitIndex: _currentIndex >= 0 ? _currentIndex : null,
+        initialPosition: resumePosition,
+      );
+      return;
+    }
+    _restoredSession = false;
+    await _player.play();
+    _schedulePersistPlaybackState();
+  }
+
+  Future<void> pause() async {
+    await _player.pause();
+    _schedulePersistPlaybackState();
+  }
 
   Future<void> togglePlayPause() async {
     if (_isPlaying) {
@@ -966,7 +1226,16 @@ class PlayerProvider with ChangeNotifier {
     if (_lastSkippedUntil != null && pos < _lastSkippedUntil!) {
       _lastSkippedUntil = null;
     }
+    // Sebelum sumber audio dimuat (sesi dipulihkan), cukup perbarui posisi
+    // yang akan dipakai saat tombol putar ditekan.
+    if (_player.audioSource == null) {
+      _position = pos;
+      _schedulePersistPlaybackState();
+      notifyListeners();
+      return;
+    }
     await _player.seek(pos);
+    _schedulePersistPlaybackState();
   }
 
   Future<void> next() async {
@@ -1126,6 +1395,7 @@ class PlayerProvider with ChangeNotifier {
     _queue.insert(_playNextInsertIndex, track);
     _userQueueIds.add(track.id);
     _trimQueue();
+    _schedulePersistPlaybackState();
     notifyListeners();
   }
 
@@ -1139,6 +1409,7 @@ class PlayerProvider with ChangeNotifier {
     _queue.insertAll(_playNextInsertIndex, tracks);
     _userQueueIds.addAll(tracks.map((t) => t.id));
     _trimQueue();
+    _schedulePersistPlaybackState();
     notifyListeners();
   }
 
@@ -1161,12 +1432,14 @@ class PlayerProvider with ChangeNotifier {
   void addToQueue(TrackModel track) {
     _queue.add(track);
     _trimQueue();
+    _schedulePersistPlaybackState();
     notifyListeners();
   }
 
   void addTracksToQueue(List<TrackModel> tracks) {
     _queue.addAll(tracks);
     _trimQueue();
+    _schedulePersistPlaybackState();
     notifyListeners();
   }
 
@@ -1180,6 +1453,7 @@ class PlayerProvider with ChangeNotifier {
     if (_currentTrack != null) {
       _currentIndex = _queue.indexWhere((t) => t.id == _currentTrack!.id);
     }
+    _schedulePersistPlaybackState();
     notifyListeners();
   }
 
@@ -1208,6 +1482,7 @@ class PlayerProvider with ChangeNotifier {
       _currentIndex--;
     }
 
+    _schedulePersistPlaybackState();
     notifyListeners();
   }
 
@@ -1220,6 +1495,7 @@ class PlayerProvider with ChangeNotifier {
       _queue.clear();
       _currentIndex = -1;
     }
+    _schedulePersistPlaybackState();
     notifyListeners();
   }
 
@@ -1436,6 +1712,8 @@ class PlayerProvider with ChangeNotifier {
   @override
   void dispose() {
     _sleepTimer?.cancel();
+    _persistTimer?.cancel();
+    unawaited(_persistPlaybackState());
     _playerStateSub?.cancel();
     _positionSub?.cancel();
     _durationSub?.cancel();

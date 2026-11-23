@@ -1,12 +1,16 @@
 package com.david.spotify_pribadi
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.os.StatFs
 import android.provider.Settings
 import com.ryanheise.audioservice.AudioServiceActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -66,6 +70,20 @@ class MainActivity : AudioServiceActivity() {
                             result.success(true)
                         }
                     }
+                    "getStorageStats" -> {
+                        try {
+                            val stat = StatFs(filesDir.path)
+                            result.success(
+                                mapOf(
+                                    "freeBytes" to stat.availableBytes,
+                                    "totalBytes" to stat.totalBytes
+                                )
+                            )
+                        } catch (e: Exception) {
+                            result.error("STORAGE_STATS_FAILED", e.message, null)
+                        }
+                    }
+                    "isOnWifi" -> result.success(isOnWifi())
                     else -> result.notImplemented()
                 }
             }
@@ -119,6 +137,19 @@ class MainActivity : AudioServiceActivity() {
     private fun hasAllFilesAccess(): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return true
         return Environment.isExternalStorageManager()
+    }
+
+    /** Wi-Fi dan Ethernet dianggap koneksi tanpa kuota seluler. */
+    private fun isOnWifi(): Boolean {
+        return try {
+            val manager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            val network = manager.activeNetwork ?: return false
+            val capabilities = manager.getNetworkCapabilities(network) ?: return false
+            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
+                capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
+        } catch (e: Exception) {
+            false
+        }
     }
 
     private fun requestAllFilesAccess(result: MethodChannel.Result) {

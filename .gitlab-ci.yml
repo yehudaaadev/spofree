@@ -3,7 +3,8 @@ stages:
 
 flutter:
   stage: verify
-  image: ghcr.io/cirruslabs/flutter:stable
+  # Disamakan dengan versi Flutter di GitHub Actions agar hasil analyze sama.
+  image: ghcr.io/cirruslabs/flutter:3.47.7
   timeout: 30m
   cache:
     key: flutter-pub-$CI_COMMIT_REF_SLUG

@@ -8,6 +8,20 @@ class LyricsLine {
   final String text;
 
   const LyricsLine({required this.timestamp, required this.text});
+
+  Map<String, dynamic> toMap() {
+    return {
+      'ms': timestamp.inMilliseconds,
+      'text': text,
+    };
+  }
+
+  factory LyricsLine.fromMap(Map<String, dynamic> map) {
+    return LyricsLine(
+      timestamp: Duration(milliseconds: (map['ms'] as num?)?.toInt() ?? 0),
+      text: map['text']?.toString() ?? '',
+    );
+  }
 }
 
 /// Pengambil lirik dari LRCLIB.
