@@ -72,5 +72,6 @@
 - Static Analysis: `flutter analyze` passed (0 issues).
 - Unit Tests: `flutter test` passed (113 tests, 4 network tests skipped by default).
 - CI: `.github/workflows/build_apk.yml` runs `flutter analyze` + `flutter test` on pushes/PRs and publishes per-ABI APKs plus `SHA256SUMS.txt` on `v*` tags. `.gitlab-ci.yml` remains as a fallback.
-- Build debug berhasil: Windows (`build\windows\x64\runner\Debug\spotify_pribadi.exe`) dan Android (`build\app\outputs\flutter-apk\app-debug.apk`). Build rilis split-per-ABI dapat dibuat dengan `flutter build apk --release --split-per-abi`.
-- Catatan: APK hasil build lokal belum diuji ulang pada perangkat fisik dalam sesi ini; verifikasi runtime Android tetap diperlukan sebelum rilis.
+- Build debug berhasil: Windows (`build\windows\x64\runner\Debug\spotify_pribadi.exe`) dan Android (`build\app\outputs\flutter-apk\app-debug.apk`). Build rilis lokal `flutter build apk --release --split-per-abi` juga berhasil (arm64-v8a, armeabi-v7a, x86_64).
+- Rilis `v1.2.0` sudah dipublikasikan di GitHub Releases. Aset `WaveMusic-arm64-v8a.apk`, `WaveMusic-armeabi-v7a.apk`, dan `SHA256SUMS.txt` terverifikasi: kedua hash APK cocok, ketiga URL unduhan merespons HTTP 200, dan metadata APK arm64 menunjukkan `versionName=1.2.0` dengan `versionCode=2007`.
+- Catatan: APK hasil build lokal maupun rilis belum diuji ulang pada perangkat fisik dalam sesi ini; verifikasi runtime Android (resume antrean, deteksi Wi-Fi, statistik penyimpanan, pemasangan APK) tetap diperlukan. APK rilis masih debug-signed karena keystore resmi belum tersedia.
