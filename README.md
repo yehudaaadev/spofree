@@ -19,7 +19,7 @@
 </p>
 
 <p align="center">
-  <strong>Versi 1.2.0 · build 7</strong>
+  <strong>Rilis publik: v1.2.0 · build 7</strong>
 </p>
 
 | Pilih APK | Untuk perangkat | Catatan |

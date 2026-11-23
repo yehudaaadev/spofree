@@ -25,7 +25,8 @@ dan versi mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 ### Catatan
 - Fitur ini sudah lolos `flutter analyze`, tes unit/widget, dan build APK
   rilis, tetapi **belum diuji pada perangkat fisik**. APK rilis publik terbaru
-  masih v1.2.0 dan belum memuat fitur berbagi kode/QR.
+  masih v1.2.0 dan belum memuat fitur berbagi kode/QR. Build pengembangan
+  sumber ini memakai versi 1.3.0 (Build 8).
 - Ukuran APK bertambah karena ML Kit bawaan `mobile_scanner`; pemindaian QR
   dapat ditolak izin kameranya tanpa memblokir impor manual.
 

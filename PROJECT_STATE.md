@@ -74,12 +74,12 @@
 - Bundling ML Kit through `mobile_scanner` increases release APK size by roughly 6 MB per ABI.
 
 ## Verification Status
-- Version: 1.2.0 (Build 7) — APK publik terakhir. Source `main` kini juga memuat fitur berbagi kode/QR yang belum dirilis; naikkan ke 1.3.0 (Build 8) saat siap menerbitkan rilis berikutnya.
+- Version: 1.3.0 (Build 8) — build pengembangan dengan fitur berbagi kode/QR, belum diterbitkan sebagai rilis. APK publik terakhir masih 1.2.0 (Build 7); terbitkan v1.3.0 setelah pengujian di perangkat.
 - Static Analysis: `flutter analyze` passed (0 issues).
 - Unit Tests: `flutter test` passed (131 tests, 4 network tests skipped by default), including new share-code round-trip, malformed/gzip-bomb, merge/dedupe, 1,000-track round-trip, and QR-dialog widget tests.
 - CI: `.github/workflows/build_apk.yml` runs `flutter analyze` + `flutter test` on pushes/PRs and publishes per-ABI APKs plus `SHA256SUMS.txt` on `v*` tags. `.gitlab-ci.yml` remains as a fallback.
 - Build debug berhasil: Windows (`build\windows\x64\runner\Debug\spotify_pribadi.exe`) dan Android (`build\app\outputs\flutter-apk\app-debug.apk`). Build rilis lokal `flutter build apk --release --split-per-abi` juga berhasil (arm64-v8a, armeabi-v7a, x86_64).
-- Build rilis dengan fitur berbagi: arm64-v8a 35.362.000 byte dan armeabi-v7a 31.330.118 byte; `versionName=1.2.0`, `versionCode=2007`, `minSdk=24`, izin `CAMERA` terpasang, dan sertifikat `CN=Wave Music` terverifikasi.
+- Build rilis dengan fitur berbagi: arm64-v8a 35.362.000 byte dan armeabi-v7a 31.330.118 byte; `versionName=1.3.0`, `versionCode=2008`, `minSdk=24`, izin `CAMERA` terpasang, dan sertifikat `CN=Wave Music` terverifikasi.
 - Rilis `v1.2.0` sudah dipublikasikan di GitHub Releases. Aset `WaveMusic-arm64-v8a.apk`, `WaveMusic-armeabi-v7a.apk`, dan `SHA256SUMS.txt` terverifikasi: kedua hash APK cocok, ketiga URL unduhan merespons HTTP 200, dan metadata APK arm64 menunjukkan `versionName=1.2.0` dengan `versionCode=2007`.
 - Catatan: APK hasil build lokal maupun rilis belum diuji ulang pada perangkat fisik dalam sesi ini; verifikasi runtime Android (resume antrean, deteksi Wi-Fi, statistik penyimpanan, pemasangan APK) tetap diperlukan. Untuk fitur berbagi, yang masih perlu diuji di HP adalah izin kamera, scan QR antarponsel, share sheet, dan impor kode nyata.
 - Signing: APK rilis v1.2.0 ditandatangani release key Wave Music (SHA-256 sertifikat `aa06ab7f9c27a08695a46b5012762b609d4eac5ba5b22590d67b0605010bd4da`), bukan debug key. Build lokal memakai keystore yang sama.
