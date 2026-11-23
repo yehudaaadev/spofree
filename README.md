@@ -19,7 +19,8 @@
 </p>
 
 <p align="center">
-  <strong>Rilis publik: v1.2.0 · build 7</strong>
+  <strong>Rilis publik: v1.2.0 · build 7</strong><br>
+  <strong>Gratis · Tanpa akun · Tanpa iklan · Tidak untuk dijual</strong>
 </p>
 
 | Pilih APK | Untuk perangkat | Catatan |
@@ -63,6 +64,10 @@ Aplikasi juga menampilkan tombol **Checksum SHA-256** di menu
 > karena versi lama masih memeriksa GitLab. Unduh APK 1.2.0 sekali secara
 > manual dari tombol di atas; setelah itu pembaruan berikutnya dicek dari
 > GitHub Releases.
+
+> **Gratis, bukan untuk dijual.** Wave Music tidak memiliki harga, langganan,
+> atau iklan. APK resmi hanya dibagikan lewat GitHub Releases; jika ada pihak
+> yang menjualnya, itu bukan rilis resmi dan tidak didukung.
 
 Aplikasi pemutar musik mandiri berpenampilan modern dalam tema **Rose Pink & Obsidian Charcoal** (`#F43F5E` & `#0E0E11`) dengan audio stream YouTube bebas iklan, cover art resmi Deezer HD 1:1, unduhan offline, lirik sinkron, dan dukungan pemutaran audio lintas-platform (Android & Windows Desktop).
 
@@ -248,12 +253,14 @@ CI GitHub Actions (`.github/workflows/build_apk.yml`) menjalankan kedua perintah
 tersebut pada setiap push/PR, lalu membangun APK per-ABI. GitLab CI
 (`.gitlab-ci.yml`) tetap tersedia sebagai jalur cadangan.
 
-Saat ini ada 113 tes yang lulus (4 tes integrasi CDN YouTube dilewati secara
+Saat ini ada 131 tes yang lulus (4 tes integrasi CDN YouTube dilewati secara
 default). Cakupannya: deteksi format audio, pemetaan kualitas bitrate dan
 pemilihan stream, parser lirik LRC, serialisasi `LyricsLine`, format ukuran
 penyimpanan, serialisasi `TrackModel`, penulisan tag ID3, pembuatan nama berkas
 ekspor, validasi `Range`/`Content-Range` (termasuk server lokal), backup JSON
-v1/v2, antrean "Putar Berikutnya", preferensi unduhan, dan SponsorBlock.
+v1/v2, antrean "Putar Berikutnya", preferensi unduhan, SponsorBlock, serta
+kode berbagi `WAVE1` (round-trip, kode rusak/gzip bomb, impor 1.000 lagu, dan
+penggabungan tanpa duplikat).
 
 Tes integrasi CDN YouTube dilewati secara default. Jalankan dengan:
 
@@ -284,6 +291,23 @@ WAVE_NETWORK_TESTS=1 flutter test test/youtube_stream_source_test.dart
   sampul album sepenuhnya merupakan hak milik pencipta dan pemilik lisensi
   masing-masing. Pengguna bertanggung jawab mematuhi hukum dan Ketentuan Layanan
   penyedia sumber.
+- **Gratis & non-komersial**: APK resmi Wave Music tidak untuk dijual,
+  disewakan, atau dikemas ulang sebagai produk berbayar. Jangan memakai nama
+  atau logo Wave Music untuk produk lain. Ini adalah kebijakan proyek dan
+  merek; lisensi MIT tetap berlaku untuk kode sumber.
+- **Batas lisensi MIT**: MIT mengizinkan siapa pun memakai, menyalin, dan
+  mendistribusikan kode sumber, termasuk untuk penggunaan komersial, selama
+  notice lisensi dipertahankan. Larangan di atas berlaku untuk distribusi APK
+  resmi dan penggunaan merek, bukan untuk mencabut hak yang sudah diberikan
+  MIT atas kode. Jika ingin larangan komersial yang mengikat secara hukum atas
+  kode, lisensi harus diganti ke lisensi non-komersial.
+- **Kepatuhan Ketentuan Layanan**: Streaming dan pengunduhan audio dari YouTube
+  dapat melanggar Ketentuan Layanan YouTube dan/atau hukum hak cipta di
+  yurisdiksi tertentu. Gunakan hanya untuk konten yang kamu berhak akses dan
+  simpan; risiko sepenuhnya ada pada pengguna.
 - **Penggunaan pribadi**: Repositori ini disediakan untuk pembelajaran dan
   penggunaan pribadi. Menyebarkan ulang APK atau konten berhak cipta dapat
   melanggar hukum dan Ketentuan Layanan pihak ketiga.
+- **Tanpa jaminan**: Perangkat lunak disediakan "apa adanya", tanpa jaminan
+  apa pun. Pengembang tidak bertanggung jawab atas kerugian, kehilangan data,
+  atau pelanggaran yang timbul dari penggunaan aplikasi.
