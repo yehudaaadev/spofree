@@ -239,7 +239,7 @@ CI GitHub Actions (`.github/workflows/build_apk.yml`) menjalankan kedua perintah
 tersebut pada setiap push/PR, lalu membangun APK per-ABI. GitLab CI
 (`.gitlab-ci.yml`) tetap tersedia sebagai jalur cadangan.
 
-Saat ini ada 109 tes yang lulus (4 tes integrasi CDN YouTube dilewati secara
+Saat ini ada 113 tes yang lulus (4 tes integrasi CDN YouTube dilewati secara
 default). Cakupannya: deteksi format audio, pemetaan kualitas bitrate dan
 pemilihan stream, parser lirik LRC, serialisasi `LyricsLine`, format ukuran
 penyimpanan, serialisasi `TrackModel`, penulisan tag ID3, pembuatan nama berkas

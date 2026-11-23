@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -68,6 +69,57 @@ class UpdateService {
   static const String releasePageUrl =
       'https://github.com/yehudaaadev/spofree/releases/latest';
 
+  /// Membandingkan dua versi numerik seperti `1.2.0` vs `1.10.0`.
+  ///
+  /// Mengembalikan nilai > 0 bila [a] lebih baru, < 0 bila lebih lama, 0 bila
+  /// sama, dan null bila salah satu nama tidak bisa diurai. Suffix seperti
+  /// `-beta` atau `+7` diabaikan karena hanya inti numerik yang dibandingkan.
+  static int? compareVersionNames(String a, String b) {
+    List<int>? parse(String value) {
+      final core = value.split('+').first.split('-').first.trim();
+      if (core.isEmpty) return null;
+      final numbers = <int>[];
+      for (final part in core.split('.')) {
+        final number = int.tryParse(part.trim());
+        if (number == null) return null;
+        numbers.add(number);
+      }
+      return numbers;
+    }
+
+    final av = parse(a);
+    final bv = parse(b);
+    if (av == null || bv == null) return null;
+
+    final length = av.length > bv.length ? av.length : bv.length;
+    for (var i = 0; i < length; i++) {
+      final ai = i < av.length ? av[i] : 0;
+      final bi = i < bv.length ? bv[i] : 0;
+      if (ai != bi) return ai.compareTo(bi);
+    }
+    return 0;
+  }
+
+  /// Menentukan apakah rilis [latestName]/[latestCode] lebih baru.
+  ///
+  /// APK `--split-per-abi` menambahkan offset ke `versionCode` (1000 untuk
+  /// armeabi-v7a, 2000 untuk arm64-v8a, 4000 untuk x86_64). Karena itu
+  /// `versionCode` di `version.json` tidak bisa dibandingkan langsung dengan
+  /// `versionCode` perangkat. Nama versi dipakai lebih dulu; `versionCode`
+  /// hanya cadangan bila nama tidak valid.
+  static bool shouldOfferUpdate({
+    required int latestCode,
+    required String latestName,
+    required int currentCode,
+    required String currentName,
+  }) {
+    final comparison = compareVersionNames(latestName, currentName);
+    if (comparison == null) return latestCode > currentCode;
+    if (comparison != 0) return comparison > 0;
+    // Nama sama: hanya tawarkan bila build number memang lebih tinggi.
+    return latestCode > currentCode;
+  }
+
   final Dio _dio = Dio(
     BaseOptions(
       connectTimeout: const Duration(seconds: 8),
@@ -101,7 +153,12 @@ class UpdateService {
             ? rawChecksumUrl
             : '';
 
-        if (latestCode > currentVersionCode) {
+        if (shouldOfferUpdate(
+          latestCode: latestCode,
+          latestName: latestName,
+          currentCode: currentVersionCode,
+          currentName: currentVersionName,
+        )) {
           return AppUpdateInfo(
             hasUpdate: true,
             latestVersionCode: latestCode,

@@ -32,6 +32,8 @@ dan versi mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 
 ### Diperbaiki
 - Posisi lagu tidak lagi hilang setelah aplikasi ditutup.
+- Pemeriksaan pembaruan tidak lagi terhalang offset `versionCode` APK
+  `--split-per-abi`; perbandingan memakai `versionName` lebih dulu.
 - `flutter analyze` tetap bersih dengan Flutter 3.47.7.
 
 ## [1.1.0] - 2026-11-23

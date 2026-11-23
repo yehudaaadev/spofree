@@ -50,7 +50,7 @@
 41. **Update & Permission Hygiene**: App version comes from `package_info_plus`; update links must be HTTPS on the official GitHub repository path. Storage permissions are scoped by API level, and notification permission is requested at runtime.
 42. **Bulk Download Feedback**: Failures are collected and shown in a summary snackbar instead of being silently logged.
 43. **Documentation & CI**: Added `LICENSE`, `CHANGELOG.md`, `CONTRIBUTING.md`, issue templates, Dependabot, and GitHub Actions running `flutter analyze` + `flutter test` before building per-ABI APKs. Network-dependent YouTube tests are opt-in via `WAVE_NETWORK_TESTS=1`.
-44. **GitHub Release Updater & Checksums**: `UpdateService` reads `version.json` from `raw.githubusercontent.com/yehudaaadev/spofree/main` and only opens HTTPS URLs under `github.com/yehudaaadev/spofree`, `raw.githubusercontent.com/yehudaaadev/spofree`, or `api.github.com/repos/yehudaaadev/spofree`. Releases include `SHA256SUMS.txt`; the update sheet exposes a checksum button.
+44. **GitHub Release Updater & Checksums**: `UpdateService` reads `version.json` from `raw.githubusercontent.com/yehudaaadev/spofree/main` and only opens HTTPS URLs under `github.com/yehudaaadev/spofree`, `raw.githubusercontent.com/yehudaaadev/spofree`, or `api.github.com/repos/yehudaaadev/spofree`. Update detection compares semantic `versionName` first because Flutter `--split-per-abi` offsets the installed `versionCode` by ABI (1000/2000/4000). Releases include `SHA256SUMS.txt`; the update sheet exposes a checksum button.
 45. **Resumable Playback Session**: `PlayerProvider` debounces queue/index/position persistence to `SharedPreferences` (`wave_last_queue*`). On startup the last queue is restored without autoplay; pressing play resolves the stream at the saved position. Queue is capped to 100 stored entries around the active track.
 46. **Lyrics Cache & Offset**: `LyricsLine` is serializable; lyrics are cached per track for 30 days (max 120 entries). Per-track offset (±5 s in 0.5 s steps) is persisted and applied to `currentLyricsIndex` and tap-to-seek (`lyricSeekPosition`).
 47. **Storage Management Panel**: `StorageStatsService` combines `AudioCacheService` stats, downloaded-file sizes, and native Android `StatFs` free/total bytes. `StorageSheet` can clear the audio cache or all offline downloads and refreshes `LibraryProvider`.
@@ -70,7 +70,7 @@
 ## Verification Status
 - Version: 1.2.0 (Build 7) — dibaca otomatis dari `package_info_plus` saat runtime.
 - Static Analysis: `flutter analyze` passed (0 issues).
-- Unit Tests: `flutter test` passed (109 tests, 4 network tests skipped by default).
+- Unit Tests: `flutter test` passed (113 tests, 4 network tests skipped by default).
 - CI: `.github/workflows/build_apk.yml` runs `flutter analyze` + `flutter test` on pushes/PRs and publishes per-ABI APKs plus `SHA256SUMS.txt` on `v*` tags. `.gitlab-ci.yml` remains as a fallback.
 - Build debug berhasil: Windows (`build\windows\x64\runner\Debug\spotify_pribadi.exe`) dan Android (`build\app\outputs\flutter-apk\app-debug.apk`). Build rilis split-per-ABI dapat dibuat dengan `flutter build apk --release --split-per-abi`.
 - Catatan: APK hasil build lokal belum diuji ulang pada perangkat fisik dalam sesi ini; verifikasi runtime Android tetap diperlukan sebelum rilis.

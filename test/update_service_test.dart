@@ -117,4 +117,86 @@ void main() {
       expect(UpdateService.isTrustedReleaseUrl(''), isFalse);
     });
   });
+
+  group('UpdateService.shouldOfferUpdate', () {
+    test('mengabaikan offset versionCode APK per-ABI', () {
+      // arm64-v8a v1.2.0 terpasang memakai versionCode 2007, sedangkan
+      // version.json memakai versionCode dasar 7.
+      expect(
+        UpdateService.shouldOfferUpdate(
+          latestCode: 7,
+          latestName: '1.2.0',
+          currentCode: 2007,
+          currentName: '1.1.0',
+        ),
+        isTrue,
+      );
+      expect(
+        UpdateService.shouldOfferUpdate(
+          latestCode: 7,
+          latestName: '1.2.0',
+          currentCode: 2007,
+          currentName: '1.2.0',
+        ),
+        isFalse,
+      );
+      expect(
+        UpdateService.shouldOfferUpdate(
+          latestCode: 6,
+          latestName: '1.1.0',
+          currentCode: 2007,
+          currentName: '1.2.0',
+        ),
+        isFalse,
+      );
+    });
+
+    test('jatuh ke versionCode bila nama versi tidak valid', () {
+      expect(
+        UpdateService.shouldOfferUpdate(
+          latestCode: 8,
+          latestName: '',
+          currentCode: 7,
+          currentName: '1.2.0',
+        ),
+        isTrue,
+      );
+      expect(
+        UpdateService.shouldOfferUpdate(
+          latestCode: 7,
+          latestName: 'abc',
+          currentCode: 7,
+          currentName: '1.2.0',
+        ),
+        isFalse,
+      );
+    });
+  });
+
+  group('UpdateService.compareVersionNames', () {
+    test('membandingkan inti numerik semver', () {
+      expect(
+        UpdateService.compareVersionNames('1.2.0', '1.1.0'),
+        greaterThan(0),
+      );
+      expect(
+        UpdateService.compareVersionNames('1.1.0', '1.2.0'),
+        lessThan(0),
+      );
+      expect(UpdateService.compareVersionNames('1.2.0', '1.2.0'), 0);
+      expect(
+        UpdateService.compareVersionNames('1.10.0', '1.9.9'),
+        greaterThan(0),
+      );
+      expect(UpdateService.compareVersionNames('2.0', '1.9.9'), greaterThan(0));
+      expect(UpdateService.compareVersionNames('1.2', '1.2.0'), 0);
+      expect(UpdateService.compareVersionNames('1.2.0+7', '1.2.0'), 0);
+    });
+
+    test('mengembalikan null untuk nama yang tidak bisa diurai', () {
+      expect(UpdateService.compareVersionNames('', '1.0.0'), isNull);
+      expect(UpdateService.compareVersionNames('1.0.0', 'abc'), isNull);
+      expect(UpdateService.compareVersionNames('1..0', '1.0.0'), isNull);
+    });
+  });
 }
