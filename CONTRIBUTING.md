@@ -84,4 +84,5 @@ atau `key.properties`; keduanya sudah masuk `.gitignore`.
 ## Lisensi
 
 Dengan berkontribusi, kamu setuju bahwa kontribusimu dilisensikan di bawah
-[MIT](LICENSE).
+[PolyForm Noncommercial 1.0.0](LICENSE). Pastikan kontribusi tersebut karyamu
+sendiri atau memakai kode yang lisensinya kompatibel dengan lisensi ini.

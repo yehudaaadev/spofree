@@ -15,7 +15,7 @@
   </a>
   <img src="https://img.shields.io/badge/Android-7%2B-16161B?style=for-the-badge&logo=android" alt="Android 7+">
   <img src="https://img.shields.io/badge/Windows-Desktop-16161B?style=for-the-badge&logo=windows" alt="Windows Desktop">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/Lisensi-MIT-F43F5E?style=for-the-badge" alt="Lisensi MIT"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/Lisensi-Nonkomersial-F43F5E?style=for-the-badge" alt="Lisensi Nonkomersial"></a>
 </p>
 
 <p align="center">
@@ -66,8 +66,9 @@ Aplikasi juga menampilkan tombol **Checksum SHA-256** di menu
 > GitHub Releases.
 
 > **Gratis, bukan untuk dijual.** Wave Music tidak memiliki harga, langganan,
-> atau iklan. APK resmi hanya dibagikan lewat GitHub Releases; jika ada pihak
-> yang menjualnya, itu bukan rilis resmi dan tidak didukung.
+> atau iklan. APK resmi hanya dibagikan lewat GitHub Releases dan dilisensikan
+> untuk penggunaan nonkomersial; jika ada pihak yang menjualnya, itu bukan
+> rilis resmi dan tidak didukung.
 
 Aplikasi pemutar musik mandiri berpenampilan modern dalam tema **Rose Pink & Obsidian Charcoal** (`#F43F5E` & `#0E0E11`) dengan audio stream YouTube bebas iklan, cover art resmi Deezer HD 1:1, unduhan offline, lirik sinkron, dan dukungan pemutaran audio lintas-platform (Android & Windows Desktop).
 
@@ -281,8 +282,11 @@ WAVE_NETWORK_TESTS=1 flutter test test/youtube_stream_source_test.dart
 ## Lisensi, Merek & Pengembang
 
 - **Pengembang**: David Yehuda Surbakti
-- **Lisensi**: [MIT License](LICENSE) untuk kode sumber. Lisensi ini tidak
-  memberikan hak atas konten musik, cover art, merek, atau layanan pihak ketiga.
+- **Lisensi**: [PolyForm Noncommercial 1.0.0](LICENSE) untuk kode sumber.
+  Lisensi ini mengizinkan penggunaan pribadi, pembelajaran, hobi, dan
+  organisasi nonkomersial, tetapi **melarang penggunaan komersial, penjualan,
+  penyewaan, dan distribusi berbayar**. Lisensi ini tidak memberikan hak atas
+  konten musik, cover art, merek, atau layanan pihak ketiga.
 - **Merek**: Wave Music tidak berafiliasi dengan Spotify, YouTube, Google, atau
   Deezer. Nama merek tersebut hanya digunakan secara nominatif untuk menjelaskan
   kompatibilitas impor/streaming.
@@ -291,16 +295,12 @@ WAVE_NETWORK_TESTS=1 flutter test test/youtube_stream_source_test.dart
   sampul album sepenuhnya merupakan hak milik pencipta dan pemilik lisensi
   masing-masing. Pengguna bertanggung jawab mematuhi hukum dan Ketentuan Layanan
   penyedia sumber.
-- **Gratis & non-komersial**: APK resmi Wave Music tidak untuk dijual,
-  disewakan, atau dikemas ulang sebagai produk berbayar. Jangan memakai nama
-  atau logo Wave Music untuk produk lain. Ini adalah kebijakan proyek dan
-  merek; lisensi MIT tetap berlaku untuk kode sumber.
-- **Batas lisensi MIT**: MIT mengizinkan siapa pun memakai, menyalin, dan
-  mendistribusikan kode sumber, termasuk untuk penggunaan komersial, selama
-  notice lisensi dipertahankan. Larangan di atas berlaku untuk distribusi APK
-  resmi dan penggunaan merek, bukan untuk mencabut hak yang sudah diberikan
-  MIT atas kode. Jika ingin larangan komersial yang mengikat secara hukum atas
-  kode, lisensi harus diganti ke lisensi non-komersial.
+- **Gratis & non-komersial**: APK resmi Wave Music tidak dijual dan tidak boleh
+  dipakai untuk layanan berbayar. Jangan memakai nama atau logo Wave Music untuk
+  produk lain.
+- **Versi sebelumnya**: Salinan kode yang sudah diperoleh saat proyek masih
+  memakai MIT tetap tunduk pada MIT. Mulai commit penggantian lisensi, versi
+  baru memakai PolyForm Noncommercial 1.0.0.
 - **Kepatuhan Ketentuan Layanan**: Streaming dan pengunduhan audio dari YouTube
   dapat melanggar Ketentuan Layanan YouTube dan/atau hukum hak cipta di
   yurisdiksi tertentu. Gunakan hanya untuk konten yang kamu berhak akses dan

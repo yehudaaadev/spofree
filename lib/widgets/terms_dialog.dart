@@ -115,9 +115,9 @@ class TermsDisclaimerDialog extends StatelessWidget {
                         SizedBox(height: 12),
                         _DisclaimerItem(
                           number: '2',
-                          title: 'Lisensi Perangkat Lunak (MIT License)',
+                          title: 'Lisensi Perangkat Lunak (PolyForm Noncommercial 1.0.0)',
                           description:
-                              'Aplikasi ini dilisensikan di bawah MIT License. Hak Cipta (c) 2026 David Yehuda Surbakti. Disediakan "sebagaimana adanya" (as-is) tanpa jaminan apa pun.',
+                              'Aplikasi ini dilisensikan di bawah PolyForm Noncommercial License 1.0.0. Hak Cipta (c) 2026 David Yehuda Surbakti. Penggunaan komersial, penjualan, atau penyewaan tidak diizinkan. Disediakan "sebagaimana adanya" (as-is) tanpa jaminan apa pun.',
                         ),
                         SizedBox(height: 12),
                         _DisclaimerItem(

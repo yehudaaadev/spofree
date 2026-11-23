@@ -94,11 +94,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   ),
                   _OnboardingSlide(
                     visual: _LicenseVisual(),
-                    category: 'TERBUKA & TRANSPARAN',
-                    headline: 'Karya Terbuka &\nPenafian Hak Cipta.',
+                    category: 'TRANSPARAN & NONKOMERSIAL',
+                    headline: 'Lisensi Nonkomersial &\nPenafian Hak Cipta.',
                     description:
-                        'Aplikasi Wave Music dikembangkan secara independen oleh David Yehuda Surbakti di bawah Lisensi MIT. Seluruh audio bersumber dari API publik untuk keperluan edukasi dan penggunaan pribadi.',
-                    tags: ['Lisensi MIT', 'Proyek Terbuka', 'Edukasi'],
+                        'Aplikasi Wave Music dikembangkan secara independen oleh David Yehuda Surbakti di bawah PolyForm Noncommercial License 1.0.0: gratis untuk penggunaan pribadi dan edukasi, tetapi tidak untuk dijual atau dipakai secara komersial. Seluruh audio bersumber dari API publik.',
+                    tags: ['Nonkomersial', 'Kode Publik', 'Edukasi'],
                   ),
                 ],
               ),
@@ -576,7 +576,7 @@ class _LicenseVisual extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Lisensi MIT Terbuka',
+                      'Lisensi Nonkomersial',
                       style: TextStyle(
                         color: AppTheme.textPrimary,
                         fontWeight: FontWeight.bold,
@@ -584,7 +584,7 @@ class _LicenseVisual extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      'Open Source Software',
+                      'PolyForm Noncommercial 1.0.0',
                       style: TextStyle(
                         color: AppTheme.textSecondary,
                         fontSize: 10.5,

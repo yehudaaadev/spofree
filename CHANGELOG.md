@@ -22,6 +22,13 @@ dan versi mengikuti [Semantic Versioning](https://semver.org/lang/id/).
   tetap bisa ditempel/dibagikan karena kamera tidak tersedia untuk fitur ini.
 - Dependensi baru: `qr_flutter`, `mobile_scanner`, dan `share_plus`.
 
+### Diubah
+- **Lisensi sumber diubah dari MIT ke PolyForm Noncommercial 1.0.0.** Kode
+  sumber dan APK resmi tidak boleh dipakai untuk tujuan komersial, dijual, atau
+  disewakan. Salinan yang sudah diperoleh saat proyek masih memakai MIT tetap
+  tunduk pada MIT. README, onboarding, dialog Ketentuan, dan CONTRIBUTING
+  diperbarui.
+
 ### Catatan
 - Fitur ini sudah lolos `flutter analyze`, tes unit/widget, dan build APK
   rilis, tetapi **belum diuji pada perangkat fisik**. APK rilis publik terbaru

@@ -42,7 +42,7 @@ void main() {
       // Slide 2 -> Slide 3
       await tester.tap(find.text('Lanjut'));
       await tester.pumpAndSettle();
-      expect(find.text('Karya Terbuka &\nPenafian Hak Cipta.'), findsOneWidget);
+      expect(find.text('Lisensi Nonkomersial &\nPenafian Hak Cipta.'), findsOneWidget);
       expect(find.text('David Yehuda Surbakti'), findsOneWidget);
       expect(find.text('Mulai Mendengarkan'), findsOneWidget);
 
