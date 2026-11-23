@@ -76,7 +76,7 @@
 ## Verification Status
 - Version: 1.2.0 (Build 7) — APK publik terakhir. Source `main` kini juga memuat fitur berbagi kode/QR yang belum dirilis; naikkan ke 1.3.0 (Build 8) saat siap menerbitkan rilis berikutnya.
 - Static Analysis: `flutter analyze` passed (0 issues).
-- Unit Tests: `flutter test` passed (130 tests, 4 network tests skipped by default), including new share-code round-trip, malformed/gzip-bomb, merge/dedupe, and QR-dialog widget tests.
+- Unit Tests: `flutter test` passed (131 tests, 4 network tests skipped by default), including new share-code round-trip, malformed/gzip-bomb, merge/dedupe, 1,000-track round-trip, and QR-dialog widget tests.
 - CI: `.github/workflows/build_apk.yml` runs `flutter analyze` + `flutter test` on pushes/PRs and publishes per-ABI APKs plus `SHA256SUMS.txt` on `v*` tags. `.gitlab-ci.yml` remains as a fallback.
 - Build debug berhasil: Windows (`build\windows\x64\runner\Debug\spotify_pribadi.exe`) dan Android (`build\app\outputs\flutter-apk\app-debug.apk`). Build rilis lokal `flutter build apk --release --split-per-abi` juga berhasil (arm64-v8a, armeabi-v7a, x86_64).
 - Build rilis dengan fitur berbagi: arm64-v8a 35.362.000 byte dan armeabi-v7a 31.330.118 byte; `versionName=1.2.0`, `versionCode=2007`, `minSdk=24`, izin `CAMERA` terpasang, dan sertifikat `CN=Wave Music` terverifikasi.

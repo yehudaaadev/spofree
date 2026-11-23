@@ -232,5 +232,30 @@ void main() {
         );
       },
     );
+
+    test('playlist 1.000 lagu tetap bisa dibaca ulang oleh aplikasi', () {
+      final tracks = List.generate(
+        PlaylistShareService.maxTracks,
+        (i) => TrackModel(
+          id: 'yt_video$i',
+          title: 'Judul Lagu Nomor $i',
+          artist: 'Nama Artis $i',
+          album: 'Album $i',
+          artworkUrl: '',
+          durationMs: 180000 + i,
+          youtubeId: 'video$i',
+        ),
+      );
+
+      final code = PlaylistShareService.encodePlaylist(
+        name: 'Koleksi Besar',
+        tracks: tracks,
+      );
+
+      expect(code.length, lessThan(PlaylistShareService.maxCodeLength));
+      final decoded = PlaylistShareService.decode(code);
+      expect(decoded.tracks.length, PlaylistShareService.maxTracks);
+      expect(decoded.tracks.last.title, 'Judul Lagu Nomor 999');
+    });
   });
 }
