@@ -51,11 +51,13 @@ sha256sum -c SHA256SUMS.txt
 Aplikasi juga menampilkan tombol **Checksum SHA-256** di menu
 **Informasi & Bantuan → Cek Update** saat versi baru tersedia.
 
-> **Status distribusi:** Wave Music adalah proyek pribadi/edukasi. APK yang
-> dipublikasikan saat ini ditandatangani dengan debug key karena belum ada
-> keystore rilis resmi; CI sudah mendukung signing lewat secret (lihat
-> [CONTRIBUTING.md](CONTRIBUTING.md#signing-rilis-opsional)). Gunakan untuk
-> pengujian pribadi. Jangan menyebarkan APK yang memuat rekaman berhak cipta.
+> **Status distribusi:** Wave Music adalah proyek pribadi/edukasi. Sejak
+> v1.2.0, APK rilis ditandatangani dengan release key Wave Music yang permanen
+> (SHA-256 sertifikat
+> `AA:06:AB:7F:9C:27:A0:86:95:A4:6B:50:12:76:2B:60:9D:4E:AC:5B:A5:B2:25:90:D6:7B:06:05:01:0B:D4:DA`),
+> jadi rilis berikutnya bisa dipasang sebagai pembaruan tanpa uninstall.
+> Kunci disimpan di luar repo dan tidak dibagikan. Gunakan untuk pengujian
+> pribadi. Jangan menyebarkan APK yang memuat rekaman berhak cipta.
 >
 > **Pengguna versi 1.1.0:** pembaruan otomatis belum bisa menawarkan 1.2.0
 > karena versi lama masih memeriksa GitLab. Unduh APK 1.2.0 sekali secara
@@ -225,8 +227,9 @@ HTTPS. Jangan mengganti aturan ini dengan `android:usesCleartextTraffic="true"`.
 4. Untuk distribusi, push tag `v*` (misalnya `v1.2.0`). Workflow GitHub Actions
    otomatis membangun kedua APK, membuat `SHA256SUMS.txt`, dan melampirkan
    ketiganya ke **GitHub Releases**. Repo ini tidak menyimpan binary APK.
-   Signing resmi bisa diaktifkan lewat secret `ANDROID_KEYSTORE_BASE64` dan
-   kawan-kawannya (lihat [CONTRIBUTING.md](CONTRIBUTING.md#signing-rilis-opsional)).
+   Signing resmi sudah aktif lewat secret `ANDROID_KEYSTORE_BASE64` dan
+   kawan-kawannya; detail pengelolaan ada di
+   [CONTRIBUTING.md](CONTRIBUTING.md#signing-rilis).
 
 ## Pengujian
 

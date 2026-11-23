@@ -64,10 +64,11 @@ docs(readme): jelaskan perbedaan APK 64-bit dan 32-bit
 5. Workflow `Build and Release Android APK` membangun kedua APK per-ABI,
    membuat `SHA256SUMS.txt`, dan mempublikasikan GitHub Release.
 
-### Signing Rilis (opsional)
+### Signing Rilis
 
-Tanpa keystore, APK memakai debug key. Untuk signing resmi, tambahkan secret
-berikut di **Settings → Secrets and variables → Actions**:
+Repo utama `yehudaaadev/spofree` sudah memakai signing resmi; keystore
+disimpan di luar repo dan hanya dimasukkan ke secret. Untuk fork atau build
+sendiri, tambahkan secret berikut di **Settings → Secrets and variables → Actions**:
 
 | Secret | Isi |
 |---|---|
@@ -77,7 +78,8 @@ berikut di **Settings → Secrets and variables → Actions**:
 | `ANDROID_KEY_PASSWORD` | password kunci |
 
 Workflow akan membuat `android/key.properties` dan memakai keystore tersebut
-hanya bila `ANDROID_KEYSTORE_BASE64` tersedia.
+hanya bila `ANDROID_KEYSTORE_BASE64` tersedia. Jangan pernah commit keystore
+atau `key.properties`; keduanya sudah masuk `.gitignore`.
 
 ## Lisensi
 

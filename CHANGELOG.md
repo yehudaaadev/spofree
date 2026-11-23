@@ -21,8 +21,10 @@ dan versi mengikuti [Semantic Versioning](https://semver.org/lang/id/).
   ±0,5 detik per lagu untuk menyelaraskan dengan audio.
 - **Mode unduh hanya via Wi-Fi.** Mencegah kuota seluler terpakai saat
   mengunduh lagu offline.
-- **Dukungan signing rilis di CI.** APK otomatis ditandatangani bila secret
-  keystore tersedia; tanpa secret, build memakai debug key.
+- **Signing rilis permanen.** APK v1.2.0 ditandatangani dengan release key
+  Wave Music (RSA 4096, berlaku sampai 2054), sehingga pembaruan berikutnya
+  bisa dipasang di atas versi lama tanpa uninstall. CI memakai secret
+  keystore; tanpa secret, build memakai debug key.
 - Dokumentasi: `CHANGELOG.md`, `CONTRIBUTING.md`, issue template, dan Dependabot.
 
 ### Diubah

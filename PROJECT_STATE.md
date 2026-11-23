@@ -55,7 +55,7 @@
 46. **Lyrics Cache & Offset**: `LyricsLine` is serializable; lyrics are cached per track for 30 days (max 120 entries). Per-track offset (±5 s in 0.5 s steps) is persisted and applied to `currentLyricsIndex` and tap-to-seek (`lyricSeekPosition`).
 47. **Storage Management Panel**: `StorageStatsService` combines `AudioCacheService` stats, downloaded-file sizes, and native Android `StatFs` free/total bytes. `StorageSheet` can clear the audio cache or all offline downloads and refreshes `LibraryProvider`.
 48. **Wi-Fi-Only Downloads**: `NetworkStatusService` queries native `ConnectivityManager` (`ACCESS_NETWORK_STATE`). `LibraryProvider` rejects single/bulk downloads on metered networks with a clear `lastDownloadError`, configurable from the app info sheet.
-49. **Release Signing in CI**: The workflow creates `android/key.properties` from `ANDROID_KEYSTORE_BASE64` and related secrets when available, otherwise falls back to debug signing.
+49. **Release Signing in CI**: The repository has a permanent Wave Music release keystore (RSA 4096, valid until 2054) stored outside the repo, with all four Actions secrets configured. The workflow creates `android/key.properties` from `ANDROID_KEYSTORE_BASE64` and signs release APKs; without the secret it falls back to debug signing.
 
 ## Known Limitations
 - Update flow opens the APK in a browser; it cannot download or verify the APK automatically. Checksums are provided for manual verification (`SHA256SUMS.txt`).
@@ -65,7 +65,7 @@
 - APK binaries are no longer committed. `version.json` points to GitHub Releases, and the in-app update action only opens that page.
 - The Android application ID, MethodChannel names, and preference keys still use `spotify_pribadi`/`spotube_*` for upgrade compatibility. Only user-facing branding was renamed to Wave Music.
 - `getStorageStats` reports the internal data partition on Android; desktop builds show cache/download sizes without free-space statistics.
-- Release APKs built locally without `android/key.properties` are debug-signed. CI signing requires the four Android secrets documented in `CONTRIBUTING.md`.
+- The release keystore lives outside the repo (`release-keys/wave-music-release.jks` in the workspace parent). Losing it prevents signing updates with the same identity; keep a secure backup. Local builds without `android/key.properties` are debug-signed.
 
 ## Verification Status
 - Version: 1.2.0 (Build 7) — dibaca otomatis dari `package_info_plus` saat runtime.
@@ -74,4 +74,5 @@
 - CI: `.github/workflows/build_apk.yml` runs `flutter analyze` + `flutter test` on pushes/PRs and publishes per-ABI APKs plus `SHA256SUMS.txt` on `v*` tags. `.gitlab-ci.yml` remains as a fallback.
 - Build debug berhasil: Windows (`build\windows\x64\runner\Debug\spotify_pribadi.exe`) dan Android (`build\app\outputs\flutter-apk\app-debug.apk`). Build rilis lokal `flutter build apk --release --split-per-abi` juga berhasil (arm64-v8a, armeabi-v7a, x86_64).
 - Rilis `v1.2.0` sudah dipublikasikan di GitHub Releases. Aset `WaveMusic-arm64-v8a.apk`, `WaveMusic-armeabi-v7a.apk`, dan `SHA256SUMS.txt` terverifikasi: kedua hash APK cocok, ketiga URL unduhan merespons HTTP 200, dan metadata APK arm64 menunjukkan `versionName=1.2.0` dengan `versionCode=2007`.
-- Catatan: APK hasil build lokal maupun rilis belum diuji ulang pada perangkat fisik dalam sesi ini; verifikasi runtime Android (resume antrean, deteksi Wi-Fi, statistik penyimpanan, pemasangan APK) tetap diperlukan. APK rilis masih debug-signed karena keystore resmi belum tersedia.
+- Catatan: APK hasil build lokal maupun rilis belum diuji ulang pada perangkat fisik dalam sesi ini; verifikasi runtime Android (resume antrean, deteksi Wi-Fi, statistik penyimpanan, pemasangan APK) tetap diperlukan.
+- Signing: APK rilis v1.2.0 ditandatangani release key Wave Music (SHA-256 sertifikat `aa06ab7f9c27a08695a46b5012762b609d4eac5ba5b22590d67b0605010bd4da`), bukan debug key. Build lokal memakai keystore yang sama.
