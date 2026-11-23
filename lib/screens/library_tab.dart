@@ -964,10 +964,10 @@ class _LibraryTabState extends State<LibraryTab> {
                                   ),
                                 ),
                                 onPressed: () {
-                                  UpdateService.instance.openDownloadUrl(updateInfo!.downloadUrl);
+                                  UpdateService.instance.openReleasePage(updateInfo!.downloadUrl);
                                 },
                                 child: const Text(
-                                  'Unduh APK',
+                                  'Buka Halaman Rilis',
                                   style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                                 ),
                               ),

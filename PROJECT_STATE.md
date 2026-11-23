@@ -56,13 +56,13 @@
 - Export to public folders still uses `MANAGE_EXTERNAL_STORAGE` (sideloaded app). A full Storage Access Framework migration is future work.
 - Web is not a supported target (local file APIs and platform channels are mobile/desktop only).
 - Crossfade is a fade-out, not true overlap; `just_audio` does not expose per-channel pan.
-- The `apk/` folder still contains old build artifacts and `version.json` points to one of them so the in-app updater keeps working. Delete those files and update `downloadUrl` if the APK should not be distributed.
+- APK binaries are no longer committed. `version.json` points to the GitLab Releases page, and the in-app update action only opens that page; the app cannot download or verify an APK automatically.
 - The Android application ID, MethodChannel names, and preference keys still use `spotify_pribadi`/`spotube_*` for upgrade compatibility. Only user-facing branding was renamed to Wave Music.
 
 ## Verification Status
 - Version: 1.1.0 (Build 6) — dibaca otomatis dari `package_info_plus` saat runtime.
 - Static Analysis: `flutter analyze` passed (0 issues).
-- Unit Tests: `flutter test` passed (97 tests, 4 network tests skipped by default).
+- Unit Tests: `flutter test` passed (99 tests, 4 network tests skipped by default).
 - CI: `.gitlab-ci.yml` runs `flutter analyze` + `flutter test` on merge requests and branches.
 - Build debug berhasil: Windows (`build\windows\x64\runner\Debug\spotify_pribadi.exe`) dan Android (`build\app\outputs\flutter-apk\app-debug.apk`). Build rilis split-per-ABI dapat dibuat dengan `flutter build apk --release --split-per-abi`.
 - Catatan: APK hasil build lokal belum diuji ulang pada perangkat fisik dalam sesi ini; verifikasi runtime Android tetap diperlukan sebelum rilis.

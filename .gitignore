@@ -49,9 +49,9 @@ app.*.map.json
 
 # Build artifacts & binaries
 release_apk/
+apk/
 *.apk
 *.aab
-!apk/*.apk
 
 # Keystore & Android signing
 *.jks

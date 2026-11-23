@@ -144,10 +144,10 @@ HTTPS. Jangan mengganti aturan ini dengan `android:usesCleartextTraffic="true"`.
    flutter build apk --release --split-per-abi
    ```
 
-3. Lokasi APK:
+3. Lokasi APK (hanya lokal, tidak di-commit ke Git):
 
-   - `release_apk/` (Salinan aman permanen, sudah dipecah per-ABI agar unduhan hemat kuota)
-   - `build/app/outputs/flutter-apk/` (Output Gradle)
+   - `release_apk/` (salinan lokal yang sudah dipecah per-ABI)
+   - `build/app/outputs/flutter-apk/` (output Gradle)
 
    Berkas per-ABI:
    - `app-arm64-v8a-release.apk` — HP modern (Android 7+ ARM 64-bit), **paling hemat kuota**.
@@ -155,6 +155,10 @@ HTTPS. Jangan mengganti aturan ini dengan `android:usesCleartextTraffic="true"`.
    - `app-x86_64-release.apk` — hanya untuk emulator.
 
    Pasang di HP: salin APK ke HP lalu ketuk file-nya (aktifkan "Install unknown apps" bila diminta).
+
+4. Untuk distribusi, lampirkan APK ke **GitLab Releases** secara manual. Repo ini
+   tidak menyimpan binary APK; menu pembaruan di aplikasi hanya membuka halaman
+   rilis (`/-/releases`) agar pengguna mengunduh dari sumber resmi.
 
 ## Pengujian
 
@@ -166,7 +170,7 @@ flutter test
 CI GitLab (`.gitlab-ci.yml`) menjalankan kedua perintah tersebut pada setiap
 merge request dan branch.
 
-Saat ini ada 97 tes yang lulus (4 tes integrasi CDN YouTube dilewati secara
+Saat ini ada 99 tes yang lulus (4 tes integrasi CDN YouTube dilewati secara
 default). Cakupannya: deteksi format audio, pemetaan kualitas bitrate dan
 pemilihan stream, parser lirik LRC, serialisasi `TrackModel`, penulisan tag ID3,
 pembuatan nama berkas ekspor, validasi `Range`/`Content-Range` (termasuk server

@@ -28,7 +28,7 @@ class AppUpdateInfo {
         downloadUrl = '';
 }
 
-/// Layanan pengecekan pembaruan APK mandiri via GitLab.
+/// Layanan pengecekan pembaruan aplikasi via halaman rilis GitLab.
 class UpdateService {
   UpdateService._();
   static final UpdateService instance = UpdateService._();
@@ -66,7 +66,7 @@ class UpdateService {
     ),
   );
 
-  /// Memeriksa apakah ada versi APK yang lebih baru di repository GitLab.
+  /// Memeriksa apakah ada versi yang lebih baru di repository GitLab.
   Future<AppUpdateInfo> checkForUpdate() async {
     try {
       final response = await _dio.get(_versionUrl);
@@ -81,11 +81,10 @@ class UpdateService {
         final downloadUrl = data['downloadUrl'] as String? ?? '';
         await loadVersionInfo();
 
-        // Hanya tautan HTTPS dari repositori resmi yang boleh dibuka. Tanpa
-        // verifikasi checksum, ini bukan jaminan keamanan penuh, tetapi
+        // Hanya tautan HTTPS dari repositori resmi yang boleh dibuka. Ini
         // mencegah pengalihan ke domain lain bila version.json disalahgunakan.
         if (latestCode > currentVersionCode &&
-            _isTrustedDownloadUrl(downloadUrl)) {
+            isTrustedReleaseUrl(downloadUrl)) {
           return AppUpdateInfo(
             hasUpdate: true,
             latestVersionCode: latestCode,
@@ -102,7 +101,10 @@ class UpdateService {
   }
 
   /// Hanya izinkan HTTPS ke repositori rilis resmi.
-  static bool _isTrustedDownloadUrl(String url) {
+  ///
+  /// Halaman rilis (`/-/releases`) dan berkas di dalam repo sama-sama
+  /// diterima, tetapi domain dan awalan path harus persis milik repo ini.
+  static bool isTrustedReleaseUrl(String url) {
     final uri = Uri.tryParse(url);
     if (uri == null || uri.scheme != 'https' || uri.host != 'gitlab.com') {
       return false;
@@ -110,14 +112,14 @@ class UpdateService {
     return uri.path.startsWith('/davidyehudaaa/spotify-gratis/');
   }
 
-  /// Membuka tautan unduhan APK di browser default pengguna.
-  Future<bool> openDownloadUrl(String url) async {
-    if (!_isTrustedDownloadUrl(url)) return false;
+  /// Membuka halaman rilis di browser default pengguna.
+  Future<bool> openReleasePage(String url) async {
+    if (!isTrustedReleaseUrl(url)) return false;
     try {
       final result = await _channel.invokeMethod<bool>('openUrl', {'url': url});
       return result ?? false;
     } catch (e) {
-      debugPrint('[UpdateService] openDownloadUrl gagal: $e');
+      debugPrint('[UpdateService] openReleasePage gagal: $e');
       return false;
     }
   }

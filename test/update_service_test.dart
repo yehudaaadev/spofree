@@ -34,4 +34,49 @@ void main() {
       expect(UpdateService.instance, isNotNull);
     });
   });
+
+  group('UpdateService.isTrustedReleaseUrl', () {
+    test('menerima halaman rilis dan berkas di repo resmi', () {
+      expect(
+        UpdateService.isTrustedReleaseUrl(
+          'https://gitlab.com/davidyehudaaa/spotify-gratis/-/releases',
+        ),
+        isTrue,
+      );
+      expect(
+        UpdateService.isTrustedReleaseUrl(
+          'https://gitlab.com/davidyehudaaa/spotify-gratis/-/raw/main/version.json',
+        ),
+        isTrue,
+      );
+    });
+
+    test('menolak domain, skema, dan repo lain', () {
+      expect(
+        UpdateService.isTrustedReleaseUrl(
+          'http://gitlab.com/davidyehudaaa/spotify-gratis/-/releases',
+        ),
+        isFalse,
+      );
+      expect(
+        UpdateService.isTrustedReleaseUrl(
+          'https://example.com/davidyehudaaa/spotify-gratis/-/releases',
+        ),
+        isFalse,
+      );
+      expect(
+        UpdateService.isTrustedReleaseUrl(
+          'https://gitlab.com/orang-lain/spotify-gratis/-/releases',
+        ),
+        isFalse,
+      );
+      expect(
+        UpdateService.isTrustedReleaseUrl(
+          'https://gitlab.com/davidyehudaaa/spotify-gratis-palsu/-/releases',
+        ),
+        isFalse,
+      );
+      expect(UpdateService.isTrustedReleaseUrl(''), isFalse);
+    });
+  });
 }

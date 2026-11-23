@@ -74,9 +74,9 @@ class _MainScreenState extends State<MainScreen> {
           ],
         ),
         action: SnackBarAction(
-          label: 'Unduh',
+          label: 'Lihat Rilis',
           textColor: AppTheme.primaryGreen,
-          onPressed: () => UpdateService.instance.openDownloadUrl(info.downloadUrl),
+          onPressed: () => UpdateService.instance.openReleasePage(info.downloadUrl),
         ),
       ),
     );
