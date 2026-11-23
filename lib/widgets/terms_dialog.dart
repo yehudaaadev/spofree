@@ -81,7 +81,7 @@ class TermsDisclaimerDialog extends StatelessWidget {
                         ),
                         const SizedBox(height: 2),
                         const Text(
-                          'WaveMusic oleh David Yehuda Surbakti',
+                          'Wave Music oleh David Yehuda Surbakti',
                           style: TextStyle(
                             color: AppTheme.primaryGreen,
                             fontWeight: FontWeight.w600,
@@ -110,7 +110,7 @@ class TermsDisclaimerDialog extends StatelessWidget {
                           number: '1',
                           title: 'Pengembang & Tujuan Aplikasi',
                           description:
-                              'WaveMusic dikembangkan secara independen oleh David Yehuda Surbakti untuk keperluan edukasi, riset teknologi, dan pemutaran musik pribadi non-komersial.',
+                              'Wave Music dikembangkan secara independen oleh David Yehuda Surbakti untuk keperluan edukasi, riset teknologi, dan pemutaran musik pribadi non-komersial.',
                         ),
                         SizedBox(height: 12),
                         _DisclaimerItem(
@@ -124,7 +124,7 @@ class TermsDisclaimerDialog extends StatelessWidget {
                           number: '3',
                           title: 'Sumber Aliran Konten',
                           description:
-                              'Aplikasi tidak meng-host, menyimpan, atau mendistribusikan berkas berhak cipta pada peladen mandiri. Seluruh audio dialirkan secara langsung dari sumber publik pihak ketiga (YouTube dan Spotify metadata).',
+                              'Aplikasi tidak meng-host, menyimpan, atau mendistribusikan berkas berhak cipta pada peladen mandiri. Seluruh audio dialirkan secara langsung dari sumber publik pihak ketiga (YouTube), sedangkan metadata dan cover art berasal dari Deezer.',
                         ),
                         SizedBox(height: 12),
                         _DisclaimerItem(

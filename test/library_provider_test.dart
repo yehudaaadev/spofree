@@ -1,0 +1,162 @@
+import 'dart:convert';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:spotify_pribadi/models/track_model.dart';
+import 'package:spotify_pribadi/providers/library_provider.dart';
+import 'package:spotify_pribadi/services/playlist_backup_service.dart';
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+  });
+
+  group('LibraryProvider Liked Tracks Chronological Sorting', () {
+    test('lagu yang baru disukai selalu berada di urutan teratas (index 0)', () async {
+      final provider = LibraryProvider();
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      const track1 = TrackModel(
+        id: 'oasis_1',
+        title: 'Wonderwall',
+        artist: 'Oasis',
+        album: 'Morning Glory',
+        artworkUrl: '',
+        durationMs: 258000,
+      );
+
+      const track2 = TrackModel(
+        id: 'oasis_2',
+        title: 'Champagne Supernova',
+        artist: 'Oasis',
+        album: 'Morning Glory',
+        artworkUrl: '',
+        durationMs: 449000,
+      );
+
+      // Suka lagu oasis_1 pertama
+      await provider.toggleLike(track1);
+      expect(provider.isLiked(track1.id), isTrue);
+      expect(provider.likedList.length, equals(1));
+      expect(provider.likedList.first.id, equals('oasis_1'));
+
+      // Beri sedikit jeda waktu sebelum menyukai oasis_2
+      await Future<void>.delayed(const Duration(milliseconds: 15));
+
+      // Suka lagu oasis_2 kedua
+      await provider.toggleLike(track2);
+      expect(provider.isLiked(track2.id), isTrue);
+      expect(provider.likedList.length, equals(2));
+
+      // oasis_2 HARUS berada di urutan paling atas (index 0)
+      expect(provider.likedList.first.id, equals('oasis_2'));
+      expect(provider.likedList[1].id, equals('oasis_1'));
+
+      // Verifikasi likedAt terekam
+      expect(provider.likedList.first.likedAt, isNotNull);
+      expect(provider.likedList.first.likedAt!, greaterThan(provider.likedList[1].likedAt!));
+    });
+
+    test('menyukai ulang lagu lama memindahkannya ke posisi teratas', () async {
+      final provider = LibraryProvider();
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      const track1 = TrackModel(
+        id: 'lagu_a',
+        title: 'Lagu A',
+        artist: 'Artis A',
+        album: 'Album A',
+        artworkUrl: '',
+        durationMs: 200000,
+      );
+
+      const track2 = TrackModel(
+        id: 'lagu_b',
+        title: 'Lagu B',
+        artist: 'Artis B',
+        album: 'Album B',
+        artworkUrl: '',
+        durationMs: 210000,
+      );
+
+      await provider.toggleLike(track1);
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      await provider.toggleLike(track2);
+
+      expect(provider.likedList.first.id, equals('lagu_b'));
+
+      // Batal like lagu_a lalu like lagi
+      await provider.toggleLike(track1); // un-like
+      expect(provider.isLiked('lagu_a'), isFalse);
+      expect(provider.likedList.length, equals(1));
+
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      await provider.toggleLike(track1); // re-like
+
+      // Sekarang lagu_a harus kembali menjadi yang paling atas
+      expect(provider.likedList.first.id, equals('lagu_a'));
+      expect(provider.likedList[1].id, equals('lagu_b'));
+    });
+  });
+
+  group('LibraryProvider.restoreBackup', () {
+    const track1 = TrackModel(
+      id: 'track_1',
+      title: 'Lagu Satu',
+      artist: 'Artis',
+      album: 'Album',
+      artworkUrl: '',
+      durationMs: 100000,
+    );
+    const track2 = TrackModel(
+      id: 'track_2',
+      title: 'Lagu Dua',
+      artist: 'Artis',
+      album: 'Album',
+      artworkUrl: '',
+      durationMs: 120000,
+    );
+
+    test('menggabungkan playlist dan tidak menduplikasi lagu yang sama',
+        () async {
+      SharedPreferences.setMockInitialValues({
+        'wave_local_library': jsonEncode({
+          'playlists': {
+            'pl_1': {
+              'name': 'Favorit',
+              'tracks': [track1.toMap()],
+            },
+          },
+        }),
+      });
+
+      final provider = LibraryProvider();
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      await provider.restoreBackup(
+        BackupPayload(
+          version: 2,
+          exportedAt: DateTime.now(),
+          likedTracks: const [],
+          playlists: const [
+            BackupPlaylist(
+              id: 'pl_1',
+              name: 'Favorit',
+              tracks: [track1, track2],
+            ),
+          ],
+        ),
+      );
+
+      final playlist =
+          provider.playlists.firstWhere((p) => p.id == 'pl_1');
+      expect(playlist.tracks.length, 2);
+      expect(
+        playlist.tracks.map((t) => t.id),
+        containsAll(<String>['track_1', 'track_2']),
+      );
+    });
+  });
+}

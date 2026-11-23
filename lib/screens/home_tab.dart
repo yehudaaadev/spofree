@@ -31,6 +31,9 @@ class _HomeTabState extends State<HomeTab> {
   ];
   String _selectedCategory = 'Semua';
 
+  /// Mencegah respons kategori lama menimpa kategori yang baru dipilih.
+  int _categoryRequestToken = 0;
+
   @override
   void initState() {
     super.initState();
@@ -38,6 +41,7 @@ class _HomeTabState extends State<HomeTab> {
   }
 
   Future<void> _loadCategoryTracks(String category) async {
+    final requestToken = ++_categoryRequestToken;
     setState(() => _isLoading = true);
     List<TrackModel> tracks = [];
     try {
@@ -48,14 +52,13 @@ class _HomeTabState extends State<HomeTab> {
       }
     } catch (e) {
       debugPrint('[HomeTab] gagal memuat kategori "$category": $e');
-    } finally {
-      if (mounted) {
-        setState(() {
-          _charts = tracks;
-          _isLoading = false;
-        });
-      }
     }
+
+    if (!mounted || requestToken != _categoryRequestToken) return;
+    setState(() {
+      _charts = tracks;
+      _isLoading = false;
+    });
   }
 
   String _getGreeting() {
@@ -179,7 +182,7 @@ class _HomeTabState extends State<HomeTab> {
                 ),
               ),
 
-              // Spotify 6-Grid Quick Access Shortcuts
+              // Quick Access 6-Grid Shortcuts
               if (shortcutTracks.isNotEmpty) ...[
                 const SliverToBoxAdapter(
                   child: Padding(

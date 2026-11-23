@@ -57,16 +57,20 @@ class _PlayerSheetState extends State<PlayerSheet> {
         CachedNetworkImageProvider(track.artworkUrl),
         size: const Size(60, 60),
       );
-      if (mounted) {
-        setState(() {
-          _ambientColor = palette.vibrantColor?.color ??
-              palette.dominantColor?.color ??
-              const Color(0xFF1E3A2F);
-          _ambientSecondaryColor = palette.darkVibrantColor?.color ??
-              palette.mutedColor?.color ??
-              const Color(0xFF12231C);
-        });
+      if (!mounted) return;
+      // Abaikan hasil palette lagu lama yang datang terlambat.
+      if (context.read<PlayerProvider>().currentTrack?.artworkUrl !=
+          track.artworkUrl) {
+        return;
       }
+      setState(() {
+        _ambientColor = palette.vibrantColor?.color ??
+            palette.dominantColor?.color ??
+            const Color(0xFF1E3A2F);
+        _ambientSecondaryColor = palette.darkVibrantColor?.color ??
+            palette.mutedColor?.color ??
+            const Color(0xFF12231C);
+      });
     } catch (_) {}
   }
 

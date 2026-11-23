@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../services/storage_permission_service.dart';
 import '../theme/app_theme.dart';
 import 'main_screen.dart';
 
@@ -22,6 +25,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Future<void> _completeOnboarding() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(OnboardingScreen.prefKey, true);
+    // Minta izin notifikasi setelah pengguna menyelesaikan onboarding agar
+    // kontrol pemutaran tampil di laci notifikasi Android 13+.
+    unawaited(StoragePermissionService.requestNotificationPermission());
     if (!mounted) return;
 
     if (widget.onComplete != null) {

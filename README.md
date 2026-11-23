@@ -1,13 +1,10 @@
 # Wave Music (Standalone Music Player)
 
-[![Download APK](https://img.shields.io/badge/Download_APK-v1.0.4_(25_MB)-F43F5E?style=for-the-badge&logo=android&logoColor=white)](https://gitlab.com/davidyehudaaa/spotify-gratis/-/raw/main/apk/WaveMusic.apk?inline=false)
-[![License: MIT](https://img.shields.io/badge/License-MIT-F43F5E?style=for-the-badge)](https://opensource.org/licenses/MIT)
+[![License: MIT](https://img.shields.io/badge/License-MIT-F43F5E?style=for-the-badge)](LICENSE)
 
-> **Unduh & Pasang Langsung di HP Android:**
-> - [Download WaveMusic.apk (ARM64 - Rekomendasi Semua HP Modern)](https://gitlab.com/davidyehudaaa/spotify-gratis/-/raw/main/apk/WaveMusic.apk?inline=false)
-> - [Download WaveMusic-arm32.apk (Alternatif HP Android Lama)](https://gitlab.com/davidyehudaaa/spotify-gratis/-/raw/main/apk/WaveMusic-arm32.apk?inline=false)
->
-> *Cara Pasang:* Ketuk link di atas untuk download langsung, lalu buka file APK di HP dan aktifkan izin "Install unknown apps" jika diminta.
+> **Status distribusi:** Wave Music adalah proyek pribadi/edukasi. README ini
+> tidak menampilkan tautan unduhan APK; build sendiri mengikuti panduan di bawah.
+> Jangan menyebarkan APK yang memuat rekaman berhak cipta.
 
 Aplikasi pemutar musik mandiri berpenampilan modern dalam tema **Rose Pink & Obsidian Charcoal** (`#F43F5E` & `#0E0E11`) dengan audio stream YouTube bebas iklan, cover art resmi Deezer HD 1:1, unduhan offline, lirik sinkron, dan dukungan pemutaran audio lintas-platform (Android & Windows Desktop).
 
@@ -35,24 +32,23 @@ Aplikasi pemutar musik mandiri berpenampilan modern dalam tema **Rose Pink & Obs
 - Kontrol Kecepatan Pemutaran (0.5x, 0.75x, 1.0x, 1.25x, 1.5x, 2.0x).
 - Equalizer & Bass Boost (Preset Flat, Bass Boost, Rock, Pop, Vocal, Acoustic, Electronic, dan slider bass boost). Equalizer native hanya berjalan di Android; di platform lain kontrol Equalizer dinonaktifkan otomatis dan disertai keterangan.
 - Pitch Shift & Mode Vokal (Transpose nada semitone naik/turun, preset Karaoke, Slowed + Reverb, dan Nightcore).
-- Crossfade Transisi (Pilihan 0-12 detik untuk perpindahan lagu mulus tanpa jeda sunyi).
+- Fade-out Antar-Lagu (0-12 detik): volume lagu lama menurun sebelum lagu baru mulai. Ini bukan crossfade sejati; masih ada jeda singkat antar-lagu.
 - **SponsorBlock Otomatis**: Otomatis mendeteksi dan melewati bagian percakapan non-musik, intro hening, outro panjang, atau sponsor pada audio video YouTube via API SponsorBlock (`sponsor.ajay.app`).
-- **Stereo Audio Balance**: Pengatur keseimbangan audio kanal kiri dan kanan (-100% Kiri hingga +100% Kanan).
 - **Dua Lapis Antrean ("Putar Berikutnya" / Play Next)**: Menyisipkan lagu tepat setelah lagu yang sedang diputar sebelum melanjutkan urutan album/playlist asli.
 - **Cadangan Universal (M3U & JSON Backup)**: Ekspor dan pulihkan seluruh lagu disukai dan playlist ke format berkas M3U standar atau JSON mandiri.
-- Pilihan Kualitas Audio Bitrate (Hemat 64 kbps, Standar 128 kbps, Tinggi HQ 160-256 kbps, Maksimal 320 kbps).
+- Pilihan Kualitas Audio (Hemat 64 kbps, Standar 128 kbps, Tinggi 160 kbps, dan Otomatis). Bitrate aktual mengikuti stream YouTube yang tersedia (umumnya maksimal ~160 kbps); label "320 kbps" pada versi lama tidak pernah tercapai.
 - **Smart Autoplay / Track Radio**: Saat antrean habis, aplikasi mengambil daftar dari endpoint `artist/{id}/radio` Deezer yang disusun berdasarkan karakter lagu (genre/era), bukan sekadar nama artis — jadi dari "Tulus" radio bisa menyeber ke genre lain, bukan numpuk lagu Tulus. Lagu yang sudah diputar dicatat di riwayat radio agar tidak diulang. Tersedia opsi "CAMPUR LAGU GLOBAL" untuk menyisipkan lagu chart global, dan dapat diaktifkan/dinonaktifkan lewat toggle di opsi pemutar.
 - Antrean Lagu Interaktif (Queue Sheet dengan fitur geser urutan / drag-and-drop).
 - Riwayat "Baru Saja Diputar" (Recently Played).
 
 ### 3. Eksplorasi & Beranda Pintar
-- **Hasil Teratas Kanonikal (Top Result Card)**: Algoritma pencarian kanonikal yang memprioritaskan versi resmi berotoritas tinggi (popularitas organik YouTube & Deezer, kesepakatan konsensus ganda, serta kanal Topic/VEVO resmi) disajikan dalam kartu sorotan "Hasil Teratas" bergaya Spotify lengkap dengan badge rekomendasi utama dan tombol putar instan.
+- **Hasil Teratas Kanonikal (Top Result Card)**: Algoritma pencarian kanonikal yang memprioritaskan versi resmi berotoritas tinggi (popularitas organik YouTube & Deezer, kesepakatan konsensus ganda, serta kanal Topic/VEVO resmi) disajikan dalam kartu sorotan "Hasil Teratas" modern lengkap dengan badge rekomendasi utama dan tombol putar instan.
 - **Menu Tindakan Cepat Lagu (Titik Tiga)**: Tombol opsi (`more_vert`) pada seluruh item hasil pencarian (Hasil Teratas dan daftar lagu) yang membuka menu pintasan: Sukai lagu (Like), Download offline instan 1-ketukan, Tambah ke Playlist (lengkap dengan pembuatan playlist baru instan), Putar Berikutnya (Play Next), dan Tambah ke Antrean.
-- **Spotify 6-Grid Quick Access**: Pintasan cepat 6 kartu lagu teratas dan lagu baru diputar tepat di bawah ucapan selamat datang beranda.
+- **Quick Access 6-Grid**: Pintasan cepat 6 kartu lagu teratas dan lagu baru diputar tepat di bawah ucapan selamat datang beranda.
 - **Filter Mood & Kategori**: Filter chip instan (Semua, Pop Indonesia, Top Global, Lofi Santai, Rock, Akustik, K-Pop) dengan pembaruan daftar lagu instan.
 - **Genre & Mood Browse Hub**: 10 kartu kategori gradien kontras tinggi pada layar pencarian untuk eksplorasi lagu cepat 1-ketukan.
 - **Riwayat Pencarian Terkini**: Tag pencarian terakhir yang dapat dipilih kembali atau dihapus.
-- **Generator Kartu Kutipan Lirik (Spotify Story Card)**: Bagikan kutipan lirik favorit ke media sosial lengkap dengan background gradien, cover album, dan nama artis.
+- **Generator Kartu Kutipan Lirik**: Bagikan kutipan lirik favorit ke media sosial lengkap dengan background gradien, cover album, dan nama artis.
 
 ### 4. Koleksi, Impor & Offline Mode
 - Unduh Offline File Fisik ke memori HP dengan **ekstensi sesuai format asli** (`.mp3`, `.m4a`, `.webm`, `.opus`, `.flac`, `.wav`), dideteksi otomatis dari magic bytes berkas.
@@ -60,6 +56,7 @@ Aplikasi pemutar musik mandiri berpenampilan modern dalam tema **Rose Pink & Obs
 - Impor Playlist dari Tautan Spotify dan YouTube Playlist secara instan.
 - Pemindai File Audio Lokal HP (.mp3, .m4a, .flac, .wav, .aac, .ogg, .opus, .webm) langsung dari tab Koleksi.
 - Bulk Download ("Download Semua") untuk seluruh lagu di playlist/liked sekaligus.
+- **Pengurutan Kronologis Lagu Disukai (LIFO / Timestamp)**: Menyimpan timestamp `likedAt` saat lagu disukai pengguna dan otomatis menempatkan lagu yang baru disukai di posisi teratas koleksi secara kronologis beserta tanggal penambahan.
 - Koleksi tersimpan lokal di perangkat: Lagu Disukai, Playlist, dan riwayat "Baru Saja Diputar" tetap ada antar-jalankan aplikasi (tanpa perlu akun).
 
 ## Arsitektur Singkat
@@ -76,9 +73,11 @@ lib/
 │  ├─ ranged_http_client.dart      Klien HTTP dengan header `Range` terbatasi
 │  ├─ playlist_import_service.dart  Impor playlist Spotify (embed __NEXT_DATA__) & YouTube
 │  ├─ lyrics_service.dart    LRCLIB + parser LRC murni (dapat diuji)
-│  ├─ download_service.dart  Unduh offline (per potongan), deteksi format, ekspor + ID3
+│  ├─ download_service.dart  Unduh offline (per potongan), validasi utuh, ekspor + ID3
+│  ├─ audio_cache_service.dart  Cache LRU 300 MB dengan permintaan Range + validasi
 │  ├─ audio_format.dart      Deteksi kontainer dari magic bytes
-│  ├─ storage_permission_service.dart  Jembatan izin storage ke native Android
+│  ├─ stable_hash.dart       Hash FNV-1a stabil untuk nama cache/ID lokal
+│  ├─ storage_permission_service.dart  Jembatan izin storage/notifikasi ke native Android
 │  ├─ local_library_service.dart  Penyimpanan koleksi (disukai + playlist) di perangkat
 │  ├─ local_audio_service.dart  Pindai file audio lokal
 │  ├─ id3_writer.dart        Penulis tag ID3v2.3 (TIT2/TPE1/TALB/APIC)
@@ -93,22 +92,29 @@ lib/
 Catatan perilaku penting:
 - **Pencarian Cerdas Paralel (Hybrid Search Engine)**: Pencarian mengeksekusi Deezer API dan pencarian YouTube secara paralel, membersihkan judul video dari tag pengganggu seperti `[Official Video]`, `(Lyrics)`, menyaring video lirik amatir dan kompilasi durasi panjang (>15 menit), serta mengurutkan hasil berdasarkan bobot relevansi agar lagu artis resmi selalu di urutan teratas.
 - Semua permintaan playback diserialisasi (antrean internal) sehingga tap cepat tidak menimpa sumber audio; permintaan lama yang sudah digantikan dibatalkan. Future `play()` tidak pernah di-await di dalam antrean tersebut, karena future itu baru selesai saat lagu berakhir dan akan mengunci antrean.
-- **Pemutaran Instan & Direct Progressive Stream**: Resolusi stream audio YouTube menggunakan `requireWatchPage: false` (mempercepat pembuatan manifest dari ~1.5 detik menjadi ~350 ms). Player memprioritaskan stream progresif (`tag 18`, 128 kbps AAC stereo dalam MP4 dengan `ratebypass=yes`) yang diputar langsung via `AudioSource.uri(url, headers: ...)` ke ExoPlayer tanpa melalui proxy HTTP lokal just_audio. Ini menghilangkan batas burst kuota CDN YouTube (512 KB–1 MB) yang sebelumnya menyebabkan drop 403 di pertengahan lagu dan pengulangan lagu tak terkendali.
+- **Pemutaran Instan & Direct Progressive Stream**: Resolusi stream audio YouTube menggunakan `requireWatchPage: false` (mempercepat pembuatan manifest dari ~1.5 detik menjadi ~350 ms). Mode **Otomatis** memprioritaskan stream progresif (`tag 18`, AAC stereo dalam MP4 dengan `ratebypass=yes`) yang diputar langsung via `AudioSource.uri(url, headers: ...)`. Pilihan 64/128/160 kbps memakai stream audio-only melalui proxy `YouTubeStreamSource` agar bitrate benar-benar diterapkan.
 - **Fallback Stream Adaptif**: Jika stream progresif tidak tersedia, pemutar menggunakan `YouTubeStreamSource` (`StreamAudioSource`) dengan potongan aman 64 KB / 128 KB dan refresh URL otomatis.
 - **Navigasi Antrean Berbasis Indeks Eksplisit**: Navigasi `playTrack`, `next()`, dan `previous()` menggunakan pelacakan indeks posisi antrean eksplisit sehingga lagu dengan ID serupa atau cover beruntun tidak menyebabkan snapping ke indeks awal.
-- **Pre-caching Stream Lagu Berikutnya**: Saat sebuah lagu mulai diputar, resolusi stream lagu berikutnya di antrean langsung dimulai di latar belakang untuk perpindahan lagu nyaris instan tanpa jeda buffering.
+- **Pre-resolusi Stream Lagu Berikutnya**: Saat sebuah lagu mulai diputar, URL stream lagu berikutnya di antrean di-resolve di latar belakang (tanpa mengunduh audio) agar perpindahan lagu lebih cepat. Cache audio hanya diisi setelah sumber benar-benar dipakai, sehingga tidak ada unduhan ganda.
 - **Proteksi State Selesai (Zero-Second Completion Guard)**: Mencegah bug engine audio Windows (`just_audio_windows`) yang memancarkan status `completed` di detik 0 saat pembukaan media (`0 == 0`), sehingga lagu yang dipilih di Hasil Teratas maupun antrean tidak terlewat ke lagu berikutnya saat pertama kali diklik.
 - URL stream YouTube memiliki masa hidup singkat dan terikat pada IP perangkat: cache dibatasi 3 jam, dan saat CDN membalas 403 aplikasi otomatis me-resolve URL baru lalu melanjutkan.
 - Shuffle memakai generator acak sejati, bukan `DateTime.now().millisecond`.
 - Antrean dibatasi 300 lagu dan tambahan autoplay dibatasi 15 lagu per siklus.
 
-## Izin Penyimpanan (Android 11+)
+## Izin Penyimpanan (Android)
 
-Android 11 menghapus `requestLegacyExternalStorage`. Aplikasi kini meminta izin
-"Akses semua file" (`MANAGE_EXTERNAL_STORAGE`) melalui MethodChannel
-`com.david.spotify_pribadi/storage` ketika pengguna exporting berkas ke folder
-HP atau memindai berkas audio lokal. Izin yang ditolak ditangani dengan pesan
-yang jelas, bukan diam-diam gagal.
+- `READ_EXTERNAL_STORAGE` dibatasi sampai Android 12 (`maxSdkVersion=32`).
+- `WRITE_EXTERNAL_STORAGE` dibatasi sampai Android 10 (`maxSdkVersion=29`).
+- `MANAGE_EXTERNAL_STORAGE` hanya diminta saat pengguna mengekspor lagu ke
+  folder publik atau memindai berkas audio lokal. Aplikasi ini didistribusikan
+  mandiri (bukan lewat Google Play), sehingga izin tersebut tidak melanggar
+  kebijakan toko.
+- `POST_NOTIFICATIONS` diminta saat aplikasi dibuka (Android 13+) agar kontrol
+  pemutaran tampil di laci notifikasi.
+
+Izin yang ditolak ditangani dengan pesan yang jelas, bukan diam-diam gagal.
+Ekspor juga memiliki fallback ke folder dokumen aplikasi bila folder publik
+tidak dapat ditulis.
 
 ## Cleartext HTTP Lokal (Android)
 
@@ -157,13 +163,44 @@ flutter analyze
 flutter test
 ```
 
-Tes unit mencakup deteksi format audio, pemetaan kualitas bitrate dan pemilihan
-stream, parser lirik LRC, serialisasi `TrackModel`, penulisan tag ID3, pembuatan
-nama berkas ekspor, serta parsing header `Range`/`Content-Range` untuk pengambilan
-stream YouTube.
+CI GitLab (`.gitlab-ci.yml`) menjalankan kedua perintah tersebut pada setiap
+merge request dan branch.
 
-## Lisensi & Pengembang
+Saat ini ada 97 tes yang lulus (4 tes integrasi CDN YouTube dilewati secara
+default). Cakupannya: deteksi format audio, pemetaan kualitas bitrate dan
+pemilihan stream, parser lirik LRC, serialisasi `TrackModel`, penulisan tag ID3,
+pembuatan nama berkas ekspor, validasi `Range`/`Content-Range` (termasuk server
+lokal), backup JSON v1/v2, antrean "Putar Berikutnya", dan SponsorBlock.
+
+Tes integrasi CDN YouTube dilewati secara default. Jalankan dengan:
+
+```bash
+WAVE_NETWORK_TESTS=1 flutter test test/youtube_stream_source_test.dart
+```
+
+## Privasi
+
+- Tidak ada akun, login, cloud sync, analytics, atau iklan pihak ketiga.
+- Lagu disukai, playlist, riwayat, pengaturan, dan unduhan disimpan lokal di
+  perangkat.
+- Koneksi keluar hanya terjadi ke penyedia yang dibutuhkan fitur: Deezer
+  (katalog/cover), YouTube (stream audio), LRCLIB (lirik), SponsorBlock
+  (segmen sponsor), dan GitLab (cek versi).
+- URL stream YouTube bersifat sementara dan tidak disimpan permanen.
+
+## Lisensi, Merek & Pengembang
 
 - **Pengembang**: David Yehuda Surbakti
-- **Lisensi**: [MIT License](https://opensource.org/licenses/MIT) - Perangkat lunak sumber terbuka (*Open Source*) untuk keperluan riset, edukasi, dan pemutaran musik mandiri.
-- **Penafian Hak Cipta**: Wave Music tidak meng-host atau mendistribusikan berkas berhak cipta pada peladen mandiri. Seluruh lagu, rekaman suara, nama artis, dan sampul album sepenuhnya merupakan hak milik pencipta dan pemilik lisensi masing-masing.
+- **Lisensi**: [MIT License](LICENSE) untuk kode sumber. Lisensi ini tidak
+  memberikan hak atas konten musik, cover art, merek, atau layanan pihak ketiga.
+- **Merek**: Wave Music tidak berafiliasi dengan Spotify, YouTube, Google, atau
+  Deezer. Nama merek tersebut hanya digunakan secara nominatif untuk menjelaskan
+  kompatibilitas impor/streaming.
+- **Penafian Hak Cipta**: Wave Music tidak meng-host atau mendistribusikan berkas
+  berhak cipta pada peladen mandiri. Seluruh lagu, rekaman suara, nama artis, dan
+  sampul album sepenuhnya merupakan hak milik pencipta dan pemilik lisensi
+  masing-masing. Pengguna bertanggung jawab mematuhi hukum dan Ketentuan Layanan
+  penyedia sumber.
+- **Penggunaan pribadi**: Repositori ini disediakan untuk pembelajaran dan
+  penggunaan pribadi. Menyebarkan ulang APK atau konten berhak cipta dapat
+  melanggar hukum dan Ketentuan Layanan pihak ketiga.

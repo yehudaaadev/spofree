@@ -61,7 +61,8 @@ void main() {
       );
 
       final name = DownloadService.getSanitizedFileName(track, '.mp3');
-      expect(name, 'Artis_Contoh - Lagu_ Umum_.mp3');
+      expect(name, startsWith('Artis_Contoh - Lagu_ Umum_ ['));
+      expect(name, endsWith('.mp3'));
       expect(name.contains('/'), isFalse);
       expect(name.contains(':'), isFalse);
     });

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 /// Informasi status pembaruan aplikasi.
 class AppUpdateInfo {
@@ -32,8 +33,24 @@ class UpdateService {
   UpdateService._();
   static final UpdateService instance = UpdateService._();
 
-  static const int currentVersionCode = 6;
-  static const String currentVersionName = '1.1.0';
+  /// Nilai cadangan; diperbarui dari package info saat aplikasi berjalan.
+  static int currentVersionCode = 6;
+  static String currentVersionName = '1.1.0';
+  static bool _versionLoaded = false;
+
+  /// Membaca versi dari package info agar tidak melenceng dari pubspec.
+  static Future<void> loadVersionInfo() async {
+    if (_versionLoaded) return;
+    try {
+      final info = await PackageInfo.fromPlatform();
+      final code = int.tryParse(info.buildNumber);
+      if (code != null && code > 0) currentVersionCode = code;
+      if (info.version.isNotEmpty) currentVersionName = info.version;
+      _versionLoaded = true;
+    } catch (e) {
+      debugPrint('[UpdateService] gagal membaca versi aplikasi: $e');
+    }
+  }
 
   static const MethodChannel _channel =
       MethodChannel('com.david.spotify_pribadi/storage');
@@ -62,8 +79,13 @@ class UpdateService {
         final latestName = data['versionName'] as String? ?? '';
         final notes = data['releaseNotes'] as String? ?? '';
         final downloadUrl = data['downloadUrl'] as String? ?? '';
+        await loadVersionInfo();
 
-        if (latestCode > currentVersionCode) {
+        // Hanya tautan HTTPS dari repositori resmi yang boleh dibuka. Tanpa
+        // verifikasi checksum, ini bukan jaminan keamanan penuh, tetapi
+        // mencegah pengalihan ke domain lain bila version.json disalahgunakan.
+        if (latestCode > currentVersionCode &&
+            _isTrustedDownloadUrl(downloadUrl)) {
           return AppUpdateInfo(
             hasUpdate: true,
             latestVersionCode: latestCode,
@@ -79,9 +101,18 @@ class UpdateService {
     return const AppUpdateInfo.noUpdate();
   }
 
+  /// Hanya izinkan HTTPS ke repositori rilis resmi.
+  static bool _isTrustedDownloadUrl(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri == null || uri.scheme != 'https' || uri.host != 'gitlab.com') {
+      return false;
+    }
+    return uri.path.startsWith('/davidyehudaaa/spotify-gratis/');
+  }
+
   /// Membuka tautan unduhan APK di browser default pengguna.
   Future<bool> openDownloadUrl(String url) async {
-    if (url.isEmpty) return false;
+    if (!_isTrustedDownloadUrl(url)) return false;
     try {
       final result = await _channel.invokeMethod<bool>('openUrl', {'url': url});
       return result ?? false;

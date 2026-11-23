@@ -25,10 +25,12 @@ class StoragePermissionService {
     if (!isPermissionSupported) return true;
     try {
       final granted = await _channel.invokeMethod<bool>('hasPermission');
-      return granted ?? true;
+      // Jangan menganggap izin diberikan saat native tidak menjawab: ekspor
+      // akan gagal tanpa pesan yang jelas.
+      return granted ?? false;
     } catch (e) {
       debugPrint('[StoragePermissionService] hasPermission gagal: $e');
-      return true;
+      return false;
     }
   }
 
@@ -50,5 +52,24 @@ class StoragePermissionService {
   static Future<bool> ensurePermission() async {
     if (await hasPermission()) return true;
     return requestPermission();
+  }
+
+  /// Minta izin notifikasi Android 13+ agar notifikasi pemutaran tampil.
+  ///
+  /// Notifikasi media tetap diizinkan sistem meski izin ini ditolak, tetapi
+  /// kontrol pemutaran di laci notifikasi bisa tidak terlihat.
+  static Future<bool> requestNotificationPermission() async {
+    if (!isPermissionSupported) return true;
+    try {
+      final granted = await _channel.invokeMethod<bool>(
+        'requestNotificationPermission',
+      );
+      return granted ?? false;
+    } catch (e) {
+      debugPrint(
+        '[StoragePermissionService] requestNotificationPermission gagal: $e',
+      );
+      return false;
+    }
   }
 }

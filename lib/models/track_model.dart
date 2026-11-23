@@ -14,6 +14,10 @@ class TrackModel {
   /// proses ekspor mengetahui format asli berkas tanpa menebak dari ekstensi.
   final String? mimeType;
 
+  /// Timestamp epoch milidetik saat lagu disukai pengguna.
+  /// Dipakai untuk pengurutan koleksi lagu disukai (terbaru di atas).
+  final int? likedAt;
+
   const TrackModel({
     required this.id,
     required this.title,
@@ -24,6 +28,7 @@ class TrackModel {
     this.youtubeId,
     this.localPath,
     this.mimeType,
+    this.likedAt,
   });
 
   bool get isDownloaded => localPath != null && localPath!.isNotEmpty;
@@ -40,6 +45,12 @@ class TrackModel {
     return '$minutes:${seconds.toString().padLeft(2, '0')}';
   }
 
+  String get formattedLikedDate {
+    if (likedAt == null || likedAt == 0) return '';
+    final dt = DateTime.fromMillisecondsSinceEpoch(likedAt!);
+    return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
+  }
+
   TrackModel copyWith({
     String? id,
     String? title,
@@ -50,6 +61,7 @@ class TrackModel {
     String? youtubeId,
     String? localPath,
     String? mimeType,
+    int? likedAt,
   }) {
     return TrackModel(
       id: id ?? this.id,
@@ -61,6 +73,7 @@ class TrackModel {
       youtubeId: youtubeId ?? this.youtubeId,
       localPath: localPath ?? this.localPath,
       mimeType: mimeType ?? this.mimeType,
+      likedAt: likedAt ?? this.likedAt,
     );
   }
 
@@ -75,6 +88,7 @@ class TrackModel {
       'youtubeId': youtubeId,
       'localPath': localPath,
       'mimeType': mimeType,
+      'likedAt': likedAt,
     };
   }
 
@@ -89,6 +103,7 @@ class TrackModel {
       youtubeId: map['youtubeId']?.toString(),
       localPath: map['localPath']?.toString(),
       mimeType: map['mimeType']?.toString(),
+      likedAt: (map['likedAt'] as num?)?.toInt(),
     );
   }
 

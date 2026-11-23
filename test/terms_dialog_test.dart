@@ -31,7 +31,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Ketentuan & Penafian'), findsOneWidget);
-      expect(find.text('WaveMusic oleh David Yehuda Surbakti'), findsOneWidget);
+      expect(find.text('Wave Music oleh David Yehuda Surbakti'), findsOneWidget);
       expect(find.text('Pengembang & Tujuan Aplikasi'), findsOneWidget);
       expect(find.text('Lisensi Perangkat Lunak (MIT License)'), findsOneWidget);
       expect(find.text('Sumber Aliran Konten'), findsOneWidget);

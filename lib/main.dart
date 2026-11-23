@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:audio_session/audio_session.dart';
@@ -11,6 +12,8 @@ import 'providers/library_provider.dart';
 import 'providers/player_provider.dart';
 import 'screens/main_screen.dart';
 import 'screens/onboarding_screen.dart';
+import 'services/storage_permission_service.dart';
+import 'services/update_service.dart';
 import 'theme/app_theme.dart';
 
 Future<void> main() async {
@@ -39,16 +42,22 @@ Future<void> main() async {
 
   final prefs = await SharedPreferences.getInstance();
   final hasAcceptedTerms = prefs.getBool('has_accepted_terms_v1') ?? false;
+  await UpdateService.loadVersionInfo();
 
-  runApp(SpotifyCloneApp(
+  runApp(WaveMusicApp(
     initialHome: hasAcceptedTerms ? const MainScreen() : const OnboardingScreen(),
   ));
+
+  // Diminta setelah UI tampil agar dialog izin tidak menutupi layar awal.
+  if (hasAcceptedTerms) {
+    unawaited(StoragePermissionService.requestNotificationPermission());
+  }
 }
 
-class SpotifyCloneApp extends StatelessWidget {
+class WaveMusicApp extends StatelessWidget {
   final Widget initialHome;
 
-  const SpotifyCloneApp({
+  const WaveMusicApp({
     super.key,
     this.initialHome = const MainScreen(),
   });

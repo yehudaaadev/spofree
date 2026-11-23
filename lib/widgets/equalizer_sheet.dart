@@ -198,7 +198,7 @@ class EqualizerSheet extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
-                  'Crossfade (Transisi Antar-Lagu)',
+                  'Fade-out Antar-Lagu',
                   style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 Text(
@@ -211,7 +211,8 @@ class EqualizerSheet extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             const Text(
-              'Menghilangkan jeda sunyi antar lagu dengan transisi mulus seperti DJ.',
+              'Memudarkan volume di akhir lagu sebelum pindah. Jeda singkat saat '
+              'stream baru dimuat masih mungkin terjadi (bukan crossfade overlap).',
               style: TextStyle(color: Colors.white54, fontSize: 12),
             ),
             Slider(
@@ -222,45 +223,6 @@ class EqualizerSheet extends StatelessWidget {
               activeColor: AppTheme.primaryRose,
               inactiveColor: Colors.white12,
               onChanged: (val) => player.setCrossfadeSeconds(val.round()),
-            ),
-            const Divider(color: Colors.white10, height: 32),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Stereo Audio Balance',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  player.balance == 0.0
-                      ? 'Seimbang'
-                      : player.balance < 0
-                          ? 'Kiri ${((-player.balance) * 100).round()}%'
-                          : 'Kanan ${(player.balance * 100).round()}%',
-                  style: const TextStyle(
-                    color: AppTheme.primaryRose,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            const Text(
-              'Menyesuaikan keseimbangan volume antara telinga kiri dan kanan.',
-              style: TextStyle(color: Colors.white54, fontSize: 12),
-            ),
-            Slider(
-              value: player.balance,
-              min: -1.0,
-              max: 1.0,
-              divisions: 20,
-              activeColor: AppTheme.primaryRose,
-              inactiveColor: Colors.white12,
-              onChanged: (val) => player.setBalance(val),
             ),
             const Divider(color: Colors.white10, height: 32),
             Row(

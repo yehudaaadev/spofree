@@ -93,5 +93,40 @@ void main() {
       expect(track.durationMs, 180000);
       expect(track.formattedDuration, '3:00');
     });
+
+    test('likedAt dan formattedLikedDate berfungsi dengan benar', () {
+      final now = DateTime(2026, 11, 18, 9, 30).millisecondsSinceEpoch;
+      final track = const TrackModel(
+        id: 'oasis_1',
+        title: 'Wonderwall',
+        artist: 'Oasis',
+        album: 'Definitive',
+        artworkUrl: '',
+        durationMs: 258000,
+      ).copyWith(likedAt: now);
+
+      expect(track.likedAt, now);
+      expect(track.formattedLikedDate, '18/11/2026');
+
+      final map = track.toMap();
+      expect(map['likedAt'], now);
+
+      final restored = TrackModel.fromMap(map);
+      expect(restored.likedAt, now);
+      expect(restored.formattedLikedDate, '18/11/2026');
+    });
+
+    test('lagu lama tanpa likedAt menghasilkan format tanggal kosong', () {
+      const legacy = TrackModel(
+        id: 'old_1',
+        title: 'Old Song',
+        artist: 'Old Artist',
+        album: 'Old Album',
+        artworkUrl: '',
+        durationMs: 120000,
+      );
+      expect(legacy.likedAt, isNull);
+      expect(legacy.formattedLikedDate, '');
+    });
   });
 }

@@ -1,0 +1,20 @@
+stages:
+  - verify
+
+flutter:
+  stage: verify
+  image: ghcr.io/cirruslabs/flutter:stable
+  timeout: 30m
+  cache:
+    key: flutter-pub-$CI_COMMIT_REF_SLUG
+    paths:
+      - .dart_tool/
+      - pubspec.lock
+  script:
+    - flutter config --no-analytics
+    - flutter pub get
+    - flutter analyze
+    - flutter test
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH

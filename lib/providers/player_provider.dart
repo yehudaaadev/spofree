@@ -46,6 +46,12 @@ class PlayerProvider with ChangeNotifier {
   /// Batas waktu menunggu sumber audio selesai dimuat.
   static const Duration _loadTimeout = Duration(seconds: 12);
 
+  /// Batas waktu satu operasi playback (resolve + setAudioSource + seek).
+  ///
+  /// Tanpa batas ini, `setAudioSource` yang menggantung akan mengunci
+  /// [_playChain] selamanya dan semua tap lagu berikutnya ikut antre.
+  static const Duration _playOperationTimeout = Duration(seconds: 20);
+
   TrackModel? _currentTrack;
   List<TrackModel> _queue = [];
   int _currentIndex = -1;
@@ -59,6 +65,7 @@ class PlayerProvider with ChangeNotifier {
 
   List<LyricsLine> _lyrics = [];
   bool _isLoadingLyrics = false;
+  int _lyricsToken = 0;
 
   bool _isDownloading = false;
   double _downloadProgress = 0.0;
@@ -69,7 +76,7 @@ class PlayerProvider with ChangeNotifier {
   DateTime? _sleepTimerEndTime;
   bool _sleepAtSongEnd = false;
   List<TrackModel> _recentlyPlayed = [];
-  String _audioQuality = 'Maksimal (320 kbps High Quality)';
+  String _audioQuality = 'Otomatis (paling lancar, ~96-128 kbps)';
   bool _autoplayEnabled = true;
   bool _isFetchingAutoplay = false;
   bool _mixChartEnabled = true;
@@ -80,6 +87,10 @@ class PlayerProvider with ChangeNotifier {
   // Crossfade
   int _crossfadeSeconds = 0;
   bool _isCrossfading = false;
+
+  /// Token untuk membatalkan fade volume lama saat fade baru dimulai.
+  int _volumeFadeToken = 0;
+  bool _sleepFadeActive = false;
 
   // Pitch Shifting & Karaoke
   double _pitch = 1.0;
@@ -101,8 +112,11 @@ class PlayerProvider with ChangeNotifier {
   // Audio Balance & Mono
   double _balance = 0.0;
 
-  // Dua Lapis Antrean ("Play Next" vs Context Queue)
-  int _userQueueCount = 0;
+  // Dua Lapis Antrean ("Play Next" vs Context Queue).
+  // Menyimpan id lagu yang dimasukkan lewat "Putar Berikutnya" agar jumlahnya
+  // bisa dihitung ulang setelah reorder/remove/trim, bukan sekadar counter
+  // yang mudah melenceng.
+  final Set<String> _userQueueIds = <String>{};
 
   // Serialisasi playback & penanganan error.
   Future<void> _playChain = Future<void>.value();
@@ -114,6 +128,10 @@ class PlayerProvider with ChangeNotifier {
   /// Sebagian perangkat lama gagal mendekode Opus/WebM. Untuk lagu yang
   /// bermasalah, pemutaran dicoba sekali lagi memakai kontainer MP4 (AAC).
   String? _mp4FallbackTrackId;
+
+  /// Sumber proxy aktif. Harus ditutup saat lagu berganti agar socket tidak
+  /// menumpuk.
+  YouTubeStreamSource? _activeStreamSource;
 
   static const Map<String, List<double>> equalizerPresets = {
     'Flat': [0.0, 0.0, 0.0, 0.0, 0.0],
@@ -143,9 +161,27 @@ class PlayerProvider with ChangeNotifier {
     );
     _initPlayer();
     _initAudioSession();
-    _loadRecentlyPlayed();
-    _initEqualizer();
-    _loadPreferences();
+    _bootstrap();
+  }
+
+  /// Memuat preferensi terlebih dahulu, baru menerapkan equalizer.
+  ///
+  /// Sebelumnya `_initEqualizer` dan `_loadPreferences` berjalan bersamaan,
+  /// sehingga preset yang tersimpan bisa tertimpa nilai default.
+  Future<void> _bootstrap() async {
+    await _loadPreferences();
+    await _initEqualizer();
+    await _loadRecentlyPlayed();
+    // Terapkan efek yang tersimpan ke player yang baru dibuat. Tanpa ini,
+    // kecepatan/pitch/loop kembali ke default setiap aplikasi dibuka.
+    try {
+      await _player.setSpeed(_playbackSpeed);
+      await _player.setPitch(_pitch);
+      await _player.setLoopMode(_loopMode);
+    } catch (e) {
+      debugPrint('[Player] gagal menerapkan efek tersimpan: $e');
+    }
+    notifyListeners();
   }
 
   TrackModel? get currentTrack => _currentTrack;
@@ -185,7 +221,19 @@ class PlayerProvider with ChangeNotifier {
   List<SponsorSegment> get activeSegments => _activeSegments;
   String? get skippedSegmentNotice => _skippedSegmentNotice;
   double get balance => _balance;
-  int get userQueueCount => _userQueueCount;
+
+  /// Jumlah lagu "Putar Berikutnya" yang masih berada setelah lagu aktif.
+  ///
+  /// Bila belum ada lagu yang diputar, seluruh lagu bertanda "Putar Berikutnya"
+  /// dihitung karena semuanya masih akan diputar.
+  int get userQueueCount {
+    var count = 0;
+    final start = _currentIndex < 0 ? 0 : _currentIndex + 1;
+    for (var i = start; i < _queue.length; i++) {
+      if (_userQueueIds.contains(_queue[i].id)) count++;
+    }
+    return count;
+  }
 
   /// Pesan error terakhir yang perlu ditampilkan ke pengguna.
   String? get errorMessage => _errorMessage;
@@ -257,13 +305,15 @@ class PlayerProvider with ChangeNotifier {
   /// mengirim data) membuat posisi playback diam di detik 0 tanpa penjelasan.
   Future<void> _watchLoadTimeout(int token, TrackModel track) async {
     await Future.delayed(_loadTimeout);
-    if (token != _playToken) return;
-    if (_isLoadingAudio && _position == Duration.zero) {
-      _isLoadingAudio = false;
-      _setError(
-        'Lagu "${track.title}" tidak dapat dimuat. Periksa koneksi lalu coba lagi.',
-      );
-    }
+    if (token != _playToken || !_isLoadingAudio) return;
+
+    // Jangan bergantung pada `_position == Duration.zero`: saat resume dari
+    // posisi tengah lagu, posisi tidak pernah nol sehingga timeout tidak pernah
+    // terpicu. `_isLoadingAudio` adalah penanda yang tepat.
+    _isLoadingAudio = false;
+    _setError(
+      'Lagu "${track.title}" tidak dapat dimuat. Periksa koneksi lalu coba lagi.',
+    );
   }
 
   void _initPlayer() {
@@ -383,24 +433,100 @@ class PlayerProvider with ChangeNotifier {
       try {
         await _equalizer.setEnabled(_equalizerEnabled);
         await _loudnessEnhancer.setEnabled(_bassBoostGain > 0);
+        await _loudnessEnhancer.setTargetGain(_bassBoostGain * 1000.0);
+        if (_equalizerEnabled) {
+          await _applyEqualizerGains();
+        }
       } catch (e) {
         debugPrint('[Player] equalizer init gagal: $e');
       }
     }
   }
 
+  Future<void> _applyEqualizerGains() async {
+    if (kIsWeb || !Platform.isAndroid) return;
+    try {
+      final params = await _equalizer.parameters;
+      for (int i = 0; i < params.bands.length && i < _customBandGains.length; i++) {
+        await params.bands[i].setGain(_customBandGains[i]);
+      }
+    } catch (e) {
+      debugPrint('[Player] penerapan gain equalizer gagal: $e');
+    }
+  }
+
   Future<void> _loadPreferences() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      if (prefs.containsKey('spotube_sponsorblock')) {
-        _sponsorBlockEnabled = prefs.getBool('spotube_sponsorblock') ?? true;
+      _sponsorBlockEnabled =
+          prefs.getBool('spotube_sponsorblock') ?? _sponsorBlockEnabled;
+      _balance = (prefs.getDouble('spotube_balance') ?? _balance).clamp(-1.0, 1.0);
+      final storedQuality = prefs.getString('spotube_audio_quality');
+      if (storedQuality != null) {
+        // Migrasi label lama yang menjanjikan 320 kbps (tidak pernah tercapai
+        // karena stream YouTube maksimal sekitar 160 kbps).
+        _audioQuality = storedQuality.toLowerCase().contains('maksimal')
+            ? 'Otomatis (paling lancar, ~96-128 kbps)'
+            : storedQuality;
       }
-      if (prefs.containsKey('spotube_balance')) {
-        _balance = prefs.getDouble('spotube_balance') ?? 0.0;
+      _isShuffle = prefs.getBool('spotube_shuffle') ?? _isShuffle;
+      final loopName = prefs.getString('spotube_loop_mode');
+      if (loopName != null) {
+        _loopMode = LoopMode.values.firstWhere(
+          (mode) => mode.name == loopName,
+          orElse: () => _loopMode,
+        );
+      }
+      _crossfadeSeconds =
+          (prefs.getInt('spotube_crossfade_seconds') ?? _crossfadeSeconds)
+              .clamp(0, 12);
+      _playbackSpeed =
+          (prefs.getDouble('spotube_playback_speed') ?? _playbackSpeed)
+              .clamp(0.5, 2.0);
+      _pitchSemitones =
+          (prefs.getInt('spotube_pitch_semitones') ?? _pitchSemitones)
+              .clamp(-6, 6);
+      _pitch = math.pow(2.0, _pitchSemitones / 12.0).toDouble();
+      _audioPreset = prefs.getString('spotube_audio_preset') ?? _audioPreset;
+      _equalizerEnabled =
+          prefs.getBool('spotube_equalizer_enabled') ?? _equalizerEnabled;
+      _equalizerPreset =
+          prefs.getString('spotube_equalizer_preset') ?? _equalizerPreset;
+      _bassBoostGain =
+          (prefs.getDouble('spotube_bass_boost') ?? _bassBoostGain)
+              .clamp(0.0, 1.0);
+
+      final rawGains = prefs.getString('spotube_band_gains');
+      if (rawGains != null) {
+        final decoded = jsonDecode(rawGains);
+        if (decoded is List) {
+          final gains =
+              decoded.whereType<num>().map((e) => e.toDouble()).toList();
+          if (gains.length == _customBandGains.length) {
+            _customBandGains = gains;
+          }
+        }
       }
       notifyListeners();
     } catch (e) {
       debugPrint('[Player] gagal memuat preferensi: $e');
+    }
+  }
+
+  Future<void> _savePref(String key, Object value) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (value is bool) {
+        await prefs.setBool(key, value);
+      } else if (value is int) {
+        await prefs.setInt(key, value);
+      } else if (value is double) {
+        await prefs.setDouble(key, value);
+      } else if (value is String) {
+        await prefs.setString(key, value);
+      }
+    } catch (e) {
+      debugPrint('[Player] gagal menyimpan preferensi $key: $e');
     }
   }
 
@@ -409,6 +535,7 @@ class PlayerProvider with ChangeNotifier {
       return;
     }
     for (final seg in _activeSegments) {
+      if (!seg.shouldAutoSkip) continue;
       if (pos >= seg.start && pos < seg.end - const Duration(milliseconds: 300)) {
         _lastSkippedUntil = seg.end;
         seek(seg.end);
@@ -439,22 +566,36 @@ class PlayerProvider with ChangeNotifier {
     }
   }
 
+  /// Memudarkan volume dari nilai saat ini menuju [target].
+  ///
+  /// Setiap pemanggilan menaikkan [_volumeFadeToken] sehingga fade yang lebih
+  /// baru otomatis membatalkan fade lama. Ini mencegah crossfade dan sleep
+  /// timer saling menimpa volume.
+  Future<void> _fadeVolumeTo(double target, Duration stepDuration) async {
+    final token = ++_volumeFadeToken;
+    final start = _player.volume.clamp(0.0, 1.0);
+    final steps = ((start - target).abs() / 0.2).ceil().clamp(1, 10);
+    for (var i = 0; i <= steps; i++) {
+      if (token != _volumeFadeToken) return;
+      final value = start + (target - start) * (i / steps);
+      await _player.setVolume(value.clamp(0.0, 1.0));
+      if (i < steps) {
+        await Future.delayed(stepDuration);
+      }
+    }
+  }
+
   Future<void> _triggerCrossfade() async {
-    if (_isCrossfading) return;
+    if (_isCrossfading || _sleepFadeActive) return;
     _isCrossfading = true;
     try {
       final stepDuration =
           Duration(milliseconds: (_crossfadeSeconds * 1000 ~/ 5).clamp(100, 1000));
-      for (double v = 1.0; v >= 0.1; v -= 0.2) {
-        await _player.setVolume(v.clamp(0.0, 1.0));
-        await Future.delayed(stepDuration);
-      }
+      await _fadeVolumeTo(0.1, stepDuration);
+      if (_sleepFadeActive) return;
       await next();
-      for (double v = 0.2; v <= 1.0; v += 0.2) {
-        await _player.setVolume(v.clamp(0.0, 1.0));
-        await Future.delayed(const Duration(milliseconds: 200));
-      }
-      await _player.setVolume(1.0);
+      if (_sleepFadeActive) return;
+      await _fadeVolumeTo(1.0, const Duration(milliseconds: 200));
     } catch (e) {
       debugPrint('[Player] crossfade gagal: $e');
       await _player.setVolume(1.0);
@@ -542,6 +683,24 @@ class PlayerProvider with ChangeNotifier {
           initialPosition: initialPosition,
           explicitIndex: explicitIndex,
           forceStreamRefresh: forceStreamRefresh,
+        ).timeout(
+          _playOperationTimeout,
+          onTimeout: () {
+            // Batalkan request yang menggantung agar rantai playback tidak
+            // terkunci selamanya. Token dinaikkan supaya kelanjutan async
+            // milik request lama tidak lagi menyentuh state pemutar.
+            if (token == _playToken) {
+              _playToken++;
+              _isLoadingAudio = false;
+              _setError(
+                'Pemuatan "${track.title}" melewati batas waktu. Coba lagi.',
+              );
+              unawaited(_player.stop());
+            }
+            throw TimeoutException(
+              'Pemuatan audio melewati ${_playOperationTimeout.inSeconds} detik.',
+            );
+          },
         );
       } catch (e, st) {
         debugPrint('[Player] playTrack gagal: $e\n$st');
@@ -607,10 +766,14 @@ class PlayerProvider with ChangeNotifier {
 
     _recordRecentlyPlayed(track);
     _fetchLyrics(track);
-    if (_userQueueCount > 0) {
-      _userQueueCount--;
-    }
+    // Lagu yang berasal dari "Putar Berikutnya" sudah mulai diputar, jadi
+    // keluarkan id-nya dari penanda antrean pengguna.
+    _userQueueIds.remove(track.id);
     _loadSponsorSegments(track);
+
+    // Jangan menyentuh sumber audio bila request ini sudah dibatalkan
+    // (mis. timeout atau pengguna memilih lagu lain saat resolve berjalan).
+    if (token != _playToken) return;
 
     try {
       final mediaItem = MediaItem(
@@ -622,12 +785,17 @@ class PlayerProvider with ChangeNotifier {
         duration: Duration(milliseconds: track.durationMs),
       );
 
+      // Tutup proxy lagu sebelumnya sebelum mengganti sumber audio.
+      _activeStreamSource?.close();
+      _activeStreamSource = null;
+
       final isLocal =
           track.localPath != null && await File(track.localPath!).exists();
 
       File? cachedFile;
       if (!isLocal) {
-        cachedFile = await AudioCacheService.instance.getCachedAudioFile(track.id);
+        cachedFile = await AudioCacheService.instance
+            .getCachedAudioFile(track.id, quality: _audioQuality);
       }
 
       if (isLocal) {
@@ -673,6 +841,7 @@ class PlayerProvider with ChangeNotifier {
         unawaited(_musicService.preloadTrackStream(
           _queue[_currentIndex + 1],
           quality: _audioQuality,
+          preferProgressive: _shouldPreferProgressive(_queue[_currentIndex + 1]),
         ));
       }
     } catch (e, st) {
@@ -695,21 +864,35 @@ class PlayerProvider with ChangeNotifier {
   ///
   /// Memprioritaskan direct progressive stream (tag 18 MP4) yang didukung penuh
   /// oleh ExoPlayer tanpa jeda proxy dan bebas dari pemblokiran HTTP 403 CDN.
+  /// Apakah stream progressive muxed (tag 18) dipakai.
+  ///
+  /// Hanya untuk mode "Otomatis" dan fallback MP4. Mode kualitas lain memakai
+  /// stream audio-only agar pilihan 64/128/160 kbps benar-benar diterapkan.
+  bool _shouldPreferProgressive(TrackModel track) {
+    return _mp4FallbackTrackId == track.id ||
+        _audioQuality.toLowerCase().contains('otomatis');
+  }
+
   Future<void> _setStreamSource(
     TrackModel track,
     MediaItem mediaItem, {
     bool forceRefresh = false,
   }) async {
+    final preferProgressive = _shouldPreferProgressive(track);
     final resolved = await _musicService.resolveAudioStreamInfo(
       track,
       quality: _audioQuality,
       forceRefresh: forceRefresh,
       preferredContainer: _preferredContainerFor(track),
-      preferProgressive: true,
+      preferProgressive: preferProgressive,
     );
 
     if (resolved.isDirectProgressive) {
-      unawaited(AudioCacheService.instance.cacheTrackFromUrl(track.id, resolved.url));
+      unawaited(AudioCacheService.instance.cacheTrackFromUrl(
+        track.id,
+        resolved.url,
+        quality: _audioQuality,
+      ));
       final source = AudioSource.uri(
         Uri.parse(resolved.url),
         headers: const {
@@ -724,21 +907,35 @@ class PlayerProvider with ChangeNotifier {
         quality: _audioQuality,
         musicService: _musicService,
         preferredContainer: _preferredContainerFor(track),
+        preferProgressive: preferProgressive,
         tag: mediaItem,
       );
+      _activeStreamSource = source;
       await _player.setAudioSource(source);
     }
   }
 
   Future<void> _fetchLyrics(TrackModel track) async {
+    final requestToken = ++_lyricsToken;
     _isLoadingLyrics = true;
     _lyrics = [];
     notifyListeners();
 
-    final result = await _lyricsService.fetchLyrics(
-      title: track.title,
-      artist: track.artist,
-    );
+    List<LyricsLine> result = [];
+    try {
+      result = await _lyricsService.fetchLyrics(
+        title: track.title,
+        artist: track.artist,
+      );
+    } catch (e) {
+      debugPrint('[Player] lirik gagal dimuat: $e');
+    }
+
+    // Respons lambat dari lagu lama tidak boleh menimpa lirik lagu baru.
+    if (requestToken != _lyricsToken || _currentTrack?.id != track.id) {
+      return;
+    }
+
     _lyrics = result;
     _isLoadingLyrics = false;
     notifyListeners();
@@ -866,6 +1063,8 @@ class PlayerProvider with ChangeNotifier {
     for (final index in removable.reversed) {
       _queue.removeAt(index);
     }
+    // Buang penanda "Putar Berikutnya" untuk lagu yang sudah tidak ada.
+    _userQueueIds.removeWhere((id) => !_queue.any((t) => t.id == id));
     if (_currentTrack != null) {
       _currentIndex = _queue.indexWhere((t) => t.id == _currentTrack!.id);
     }
@@ -889,6 +1088,7 @@ class PlayerProvider with ChangeNotifier {
 
   void toggleShuffle() {
     _isShuffle = !_isShuffle;
+    unawaited(_savePref('spotube_shuffle', _isShuffle));
     notifyListeners();
   }
 
@@ -903,7 +1103,18 @@ class PlayerProvider with ChangeNotifier {
       _loopMode = LoopMode.off;
       _player.setLoopMode(LoopMode.off);
     }
+    unawaited(_savePref('spotube_loop_mode', _loopMode.name));
     notifyListeners();
+  }
+
+  /// Posisi sisip untuk "Putar Berikutnya": tepat setelah lagu aktif dan
+  /// setelah lagu-lagu "Putar Berikutnya" yang sudah lebih dulu masuk.
+  ///
+  /// Saat belum ada lagu aktif, seluruh lagu "Putar Berikutnya" berada di awal
+  /// antrean sehingga sisipan baru diletakkan setelahnya.
+  int get _playNextInsertIndex {
+    final base = _currentIndex < 0 ? 0 : _currentIndex + 1;
+    return (base + userQueueCount).clamp(0, _queue.length);
   }
 
   /// Memutar track ini persis setelah lagu yang sedang aktif selesai ("Play Next").
@@ -912,9 +1123,8 @@ class PlayerProvider with ChangeNotifier {
       playTrack(track, queue: [track]);
       return;
     }
-    final insertIndex = (_currentIndex + 1 + _userQueueCount).clamp(0, _queue.length);
-    _queue.insert(insertIndex, track);
-    _userQueueCount++;
+    _queue.insert(_playNextInsertIndex, track);
+    _userQueueIds.add(track.id);
     _trimQueue();
     notifyListeners();
   }
@@ -926,9 +1136,8 @@ class PlayerProvider with ChangeNotifier {
       playTrack(tracks.first, queue: tracks);
       return;
     }
-    final insertIndex = (_currentIndex + 1 + _userQueueCount).clamp(0, _queue.length);
-    _queue.insertAll(insertIndex, tracks);
-    _userQueueCount += tracks.length;
+    _queue.insertAll(_playNextInsertIndex, tracks);
+    _userQueueIds.addAll(tracks.map((t) => t.id));
     _trimQueue();
     notifyListeners();
   }
@@ -975,16 +1184,35 @@ class PlayerProvider with ChangeNotifier {
   }
 
   void removeFromQueue(int index) {
-    if (index >= 0 && index < _queue.length) {
-      _queue.removeAt(index);
-      if (_currentTrack != null) {
-        _currentIndex = _queue.indexWhere((t) => t.id == _currentTrack!.id);
+    if (index < 0 || index >= _queue.length) return;
+
+    final removed = _queue.removeAt(index);
+    _userQueueIds.remove(removed.id);
+
+    if (removed.id == _currentTrack?.id) {
+      // Lagu yang sedang diputar ikut dihapus: hentikan dan lanjutkan ke lagu
+      // terdekat yang masih tersisa, bukan meninggalkan _currentIndex = -1.
+      _currentTrack = null;
+      _currentIndex = -1;
+      if (_queue.isEmpty) {
+        unawaited(_player.stop());
+      } else {
+        final nextIndex = index.clamp(0, _queue.length - 1);
+        unawaited(playTrack(
+          _queue[nextIndex],
+          queue: _queue,
+          explicitIndex: nextIndex,
+        ));
       }
-      notifyListeners();
+    } else if (index < _currentIndex) {
+      _currentIndex--;
     }
+
+    notifyListeners();
   }
 
   void clearQueue() {
+    _userQueueIds.clear();
     if (_currentTrack != null) {
       _queue = [_currentTrack!];
       _currentIndex = 0;
@@ -998,13 +1226,15 @@ class PlayerProvider with ChangeNotifier {
   // Crossfade Control
   void setCrossfadeSeconds(int seconds) {
     _crossfadeSeconds = seconds.clamp(0, 12);
+    unawaited(_savePref('spotube_crossfade_seconds', _crossfadeSeconds));
     notifyListeners();
   }
 
   // Speed Control
   Future<void> setPlaybackSpeed(double speed) async {
-    _playbackSpeed = speed;
-    await _player.setSpeed(speed);
+    _playbackSpeed = speed.clamp(0.5, 2.0);
+    await _player.setSpeed(_playbackSpeed);
+    await _savePref('spotube_playback_speed', _playbackSpeed);
     notifyListeners();
   }
 
@@ -1018,6 +1248,8 @@ class PlayerProvider with ChangeNotifier {
     } catch (e) {
       debugPrint('[Player] setPitch gagal: $e');
     }
+    await _savePref('spotube_pitch_semitones', _pitchSemitones);
+    await _savePref('spotube_audio_preset', _audioPreset);
     notifyListeners();
   }
 
@@ -1054,6 +1286,9 @@ class PlayerProvider with ChangeNotifier {
     } catch (e) {
       debugPrint('[Player] setPitch gagal: $e');
     }
+    await _savePref('spotube_playback_speed', _playbackSpeed);
+    await _savePref('spotube_pitch_semitones', _pitchSemitones);
+    await _savePref('spotube_audio_preset', _audioPreset);
     notifyListeners();
   }
 
@@ -1067,6 +1302,7 @@ class PlayerProvider with ChangeNotifier {
         debugPrint('[Player] equalizer toggle gagal: $e');
       }
     }
+    await _savePref('spotube_equalizer_enabled', _equalizerEnabled);
     notifyListeners();
   }
 
@@ -1075,17 +1311,10 @@ class PlayerProvider with ChangeNotifier {
     final gains = equalizerPresets[preset];
     if (gains != null) {
       _customBandGains = List.from(gains);
-      if (!kIsWeb && Platform.isAndroid) {
-        try {
-          final params = await _equalizer.parameters;
-          for (int i = 0; i < params.bands.length && i < gains.length; i++) {
-            await params.bands[i].setGain(gains[i]);
-          }
-        } catch (e) {
-          debugPrint('[Player] equalizer preset gagal: $e');
-        }
-      }
+      await _applyEqualizerGains();
     }
+    await _savePref('spotube_equalizer_preset', _equalizerPreset);
+    await _savePref('spotube_band_gains', jsonEncode(_customBandGains));
     notifyListeners();
   }
 
@@ -1103,6 +1332,8 @@ class PlayerProvider with ChangeNotifier {
           debugPrint('[Player] band gain gagal: $e');
         }
       }
+      await _savePref('spotube_equalizer_preset', _equalizerPreset);
+      await _savePref('spotube_band_gains', jsonEncode(_customBandGains));
       notifyListeners();
     }
   }
@@ -1117,6 +1348,7 @@ class PlayerProvider with ChangeNotifier {
         debugPrint('[Player] bass boost gagal: $e');
       }
     }
+    await _savePref('spotube_bass_boost', _bassBoostGain);
     notifyListeners();
   }
 
@@ -1135,24 +1367,28 @@ class PlayerProvider with ChangeNotifier {
   }
 
   Future<void> _executeSleepFadeOut() async {
+    _sleepFadeActive = true;
+    // Batalkan fade crossfade yang mungkin sedang berjalan agar tidak
+    // menaikkan volume lagi setelah sleep fade selesai.
+    _volumeFadeToken++;
     try {
-      for (double vol = 1.0; vol >= 0.0; vol -= 0.2) {
-        await _player.setVolume(vol.clamp(0.0, 1.0));
-        await Future.delayed(const Duration(milliseconds: 600));
-      }
+      await _fadeVolumeTo(0.0, const Duration(milliseconds: 600));
       await pause();
     } catch (e) {
       debugPrint('[Player] sleep timer gagal: $e');
     } finally {
       await _player.setVolume(1.0);
+      _sleepFadeActive = false;
       _sleepTimer = null;
       _sleepTimerEndTime = null;
       notifyListeners();
     }
   }
 
-  void setAudioQuality(String quality) {
+  Future<void> setAudioQuality(String quality) async {
+    if (_audioQuality == quality) return;
     _audioQuality = quality;
+    await _savePref('spotube_audio_quality', _audioQuality);
     notifyListeners();
   }
 
@@ -1206,6 +1442,7 @@ class PlayerProvider with ChangeNotifier {
     _errorSub?.cancel();
     _becomingNoisySub?.cancel();
     _interruptionSub?.cancel();
+    _activeStreamSource?.close();
     _player.dispose();
     super.dispose();
   }

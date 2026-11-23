@@ -21,10 +21,39 @@ void main() {
         MusicService.targetBitrateForQuality('Maksimal (320 kbps - Kualitas Tertinggi HQ)'),
         320,
       );
+      expect(
+        MusicService.targetBitrateForQuality(
+          'Otomatis (paling lancar, ~96-128 kbps)',
+        ),
+        128,
+      );
     });
 
     test('nilai tak dikenal jatuh ke kualitas maksimum', () {
       expect(MusicService.targetBitrateForQuality('Apapun'), 320);
+    });
+  });
+
+  group('MusicService.shouldPreferProgressiveQuality', () {
+    test('hanya mode Otomatis yang memakai progressive tag 18', () {
+      expect(
+        MusicService.shouldPreferProgressiveQuality('Otomatis'),
+        isTrue,
+      );
+      expect(
+        MusicService.shouldPreferProgressiveQuality(
+          'Hemat (64 kbps - Hemat kuota)',
+        ),
+        isFalse,
+      );
+      expect(
+        MusicService.shouldPreferProgressiveQuality('Standar (128 kbps)'),
+        isFalse,
+      );
+      expect(
+        MusicService.shouldPreferProgressiveQuality('Tinggi (160 kbps)'),
+        isFalse,
+      );
     });
   });
 

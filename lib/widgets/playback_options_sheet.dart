@@ -21,10 +21,10 @@ class PlaybackOptionsSheet extends StatelessWidget {
     final player = context.watch<PlayerProvider>();
     final speeds = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
     final qualities = [
-      'Hemat (64 kbps - Sangat Hemat Kuota)',
-      'Standar (128 kbps - Standar Spotify)',
-      'Tinggi (HQ 160-256 kbps - Kualitas Seimbang)',
-      'Maksimal (320 kbps - Kualitas Tertinggi HQ)',
+      'Hemat (64 kbps - Hemat kuota)',
+      'Standar (128 kbps)',
+      'Tinggi (160 kbps - kualitas terbaik yang tersedia)',
+      'Otomatis (paling lancar, ~96-128 kbps)',
     ];
 
     return Container(
@@ -174,7 +174,7 @@ class PlaybackOptionsSheet extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text(
-                    'CROSSFADE TRANSISI',
+                    'FADE-OUT ANTAR-LAGU',
                     style: TextStyle(
                       fontSize: 11,
                       letterSpacing: 1.2,
@@ -196,7 +196,7 @@ class PlaybackOptionsSheet extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               const Text(
-                'Transisi halus antar-lagu tanpa jeda sunyi.',
+                'Volume lagu lama menurun sebelum lagu berikutnya. Masih ada jeda singkat; ini bukan crossfade sejati.',
                 style: TextStyle(color: AppTheme.textSecondary, fontSize: 11),
               ),
               Slider(
@@ -318,6 +318,12 @@ class PlaybackOptionsSheet extends StatelessWidget {
                   },
                 );
               }),
+
+              const Text(
+                'Bitrate mengikuti stream YouTube yang tersedia (umumnya '
+                '64-160 kbps). Pilihan kualitas berlaku untuk lagu berikutnya.',
+                style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+              ),
 
               const SizedBox(height: 12),
             ],

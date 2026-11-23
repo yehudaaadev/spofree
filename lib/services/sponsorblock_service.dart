@@ -54,12 +54,20 @@ class SponsorSegment {
   final Duration end;
   final String uuid;
 
+  /// `skip`, `mute`, `full`, atau `poi`. Hanya `skip`/`full` yang boleh
+  /// di-seek otomatis; `mute` butuh penanganan volume terpisah dan `poi`
+  /// hanyalah penanda, bukan segmen yang harus dilewati.
+  final String actionType;
+
   const SponsorSegment({
     required this.category,
     required this.start,
     required this.end,
     required this.uuid,
+    this.actionType = 'skip',
   });
+
+  bool get shouldAutoSkip => actionType == 'skip' || actionType == 'full';
 
   Duration get duration => end - start;
 
@@ -94,7 +102,11 @@ class SponsorBlockService {
             );
 
   final Dio _dio;
-  final Map<String, List<SponsorSegment>> _cache = {};
+  final Map<String, _CachedSegments> _cache = {};
+
+  static const Duration _cacheTtl = Duration(hours: 6);
+  static const Duration _emptyCacheTtl = Duration(hours: 1);
+  static const int _maxCacheEntries = 200;
 
   static const List<String> defaultCategories = [
     'music_offtopic',
@@ -114,8 +126,28 @@ class SponsorBlockService {
     final cleanId = videoId.trim();
     if (cleanId.isEmpty) return [];
 
-    if (_cache.containsKey(cleanId)) {
-      return _cache[cleanId]!;
+    final cached = _cache[cleanId];
+    if (cached != null) {
+      final ttl = cached.segments.isEmpty ? _emptyCacheTtl : _cacheTtl;
+      if (DateTime.now().difference(cached.storedAt) < ttl) {
+        return cached.segments;
+      }
+      _cache.remove(cleanId);
+    }
+
+    void store(List<SponsorSegment> segments) {
+      if (_cache.length >= _maxCacheEntries) {
+        String? oldestKey;
+        DateTime? oldestAt;
+        _cache.forEach((key, value) {
+          if (oldestAt == null || value.storedAt.isBefore(oldestAt!)) {
+            oldestAt = value.storedAt;
+            oldestKey = key;
+          }
+        });
+        if (oldestKey != null) _cache.remove(oldestKey);
+      }
+      _cache[cleanId] = _CachedSegments(segments, DateTime.now());
     }
 
     try {
@@ -136,6 +168,7 @@ class SponsorBlockService {
             final categoryStr = item['category'] as String? ?? '';
             final segmentArr = item['segment'] as List<dynamic>?;
             final uuid = item['UUID'] as String? ?? '';
+            final actionType = item['actionType'] as String? ?? 'skip';
 
             if (segmentArr != null && segmentArr.length >= 2) {
               final startSec = (segmentArr[0] as num).toDouble();
@@ -148,6 +181,7 @@ class SponsorBlockService {
                     start: Duration(milliseconds: (startSec * 1000).round()),
                     end: Duration(milliseconds: (endSec * 1000).round()),
                     uuid: uuid,
+                    actionType: actionType,
                   ),
                 );
               }
@@ -157,19 +191,13 @@ class SponsorBlockService {
 
         // Urutkan berdasarkan waktu mulai
         segments.sort((a, b) => a.start.compareTo(b.start));
-        if (_cache.length >= 200) {
-          _cache.remove(_cache.keys.first);
-        }
-        _cache[cleanId] = segments;
+        store(segments);
         return segments;
       }
     } on DioException catch (e) {
       if (e.response?.statusCode == 404) {
         // 404 artinya tidak ada segmen untuk video ini di database SponsorBlock
-        if (_cache.length >= 200) {
-          _cache.remove(_cache.keys.first);
-        }
-        _cache[cleanId] = [];
+        store(const []);
         return [];
       }
       debugPrint('[SponsorBlock] getSegments gagal untuk $cleanId: ${e.message}');
@@ -181,4 +209,11 @@ class SponsorBlockService {
   }
 
   void clearCache() => _cache.clear();
+}
+
+class _CachedSegments {
+  final List<SponsorSegment> segments;
+  final DateTime storedAt;
+
+  const _CachedSegments(this.segments, this.storedAt);
 }

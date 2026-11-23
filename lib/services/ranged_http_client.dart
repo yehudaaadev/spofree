@@ -93,6 +93,9 @@ class RangedHttpClient {
       if (response.statusCode == HttpStatus.forbidden) {
         throw const RangedRequestForbidden(403);
       }
+      if (response.statusCode == HttpStatus.requestedRangeNotSatisfiable) {
+        return const RangedResponse(bytes: <int>[]);
+      }
       if (response.statusCode != HttpStatus.partialContent &&
           response.statusCode != HttpStatus.ok) {
         throw RangedRequestException(
@@ -100,16 +103,55 @@ class RangedHttpClient {
         );
       }
 
-      final builder = BytesBuilder(copy: false);
-      await for (final chunk in response) {
-        builder.add(chunk);
+      final contentRange =
+          response.headers.value(HttpHeaders.contentRangeHeader);
+
+      // Server yang mengabaikan header Range membalas 200 dengan data mulai
+      // byte 0. Untuk offset > 0, data itu tidak boleh ditempel di posisi yang
+      // diminta karena akan menghasilkan berkas rusak.
+      if (response.statusCode == HttpStatus.ok && start > 0) {
+        throw RangedRequestException(
+          'Server mengabaikan header Range (HTTP 200) untuk offset $start.',
+        );
       }
+
+      if (response.statusCode == HttpStatus.partialContent) {
+        final rangeStart = parseRangeStart(contentRange);
+        if (rangeStart == null || rangeStart != start) {
+          throw RangedRequestException(
+            'Content-Range tidak sesuai: diminta mulai $start, diterima '
+            '${rangeStart ?? 'tidak diketahui'}.',
+          );
+        }
+      }
+
+      // Jangan pernah menelan lebih dari rentang yang diminta. Server yang
+      // membalas HTTP 200 bisa mengirim seluruh berkas; tanpa batas ini satu
+      // potongan dapat memuat puluhan MB ke RAM.
+      final limit = end - start + 1;
+      final builder = BytesBuilder(copy: false);
+      var received = 0;
+      await for (final chunk in response) {
+        final remaining = limit - received;
+        if (remaining <= 0) break;
+        if (chunk.length <= remaining) {
+          builder.add(chunk);
+          received += chunk.length;
+        } else {
+          builder.add(chunk.sublist(0, remaining));
+          received += remaining;
+          break;
+        }
+      }
+
+      final total = parseTotalBytes(contentRange) ??
+          (response.statusCode == HttpStatus.ok && response.contentLength > 0
+              ? response.contentLength
+              : null);
 
       return RangedResponse(
         bytes: builder.takeBytes(),
-        totalBytes: parseTotalBytes(
-          response.headers.value(HttpHeaders.contentRangeHeader),
-        ),
+        totalBytes: total,
         contentType: parseContentType(
           response.headers.value(HttpHeaders.contentTypeHeader),
         ),
@@ -165,6 +207,18 @@ class RangedHttpClient {
 
   /// Menutup koneksi HTTP.
   void close() => _client.close(force: true);
+
+  /// Mengambil posisi awal dari header `Content-Range`.
+  ///
+  /// Format: `bytes 0-65535/3867712`. Mengembalikan null bila header tidak
+  /// ada atau tidak valid. Fungsi murni agar dapat diuji.
+  static int? parseRangeStart(String? contentRange) {
+    if (contentRange == null) return null;
+    final match =
+        RegExp(r'^bytes\s+(\d+)-(\d+)/').firstMatch(contentRange.trim());
+    if (match == null) return null;
+    return int.tryParse(match.group(1)!);
+  }
 
   /// Mengambil total ukuran media dari header `Content-Range`.
   ///

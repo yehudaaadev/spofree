@@ -10,7 +10,13 @@ import 'audio_format.dart';
 import 'id3_writer.dart';
 import 'music_service.dart';
 import 'ranged_http_client.dart';
+import 'stable_hash.dart';
 import 'storage_permission_service.dart';
+
+/// Sinyal internal untuk mengulang unduhan dari byte 0 setelah URL berubah.
+class _RestartDownload implements Exception {
+  const _RestartDownload();
+}
 
 /// Hasil proses ekspor berkas audio ke folder penyimpanan.
 class ExportResult {
@@ -84,46 +90,84 @@ class DownloadService {
     void Function(double progress)? onProgress,
   }) async {
     final dirPath = await _getDownloadDirectory();
-    final safeFileName = track.id.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+    // ID yang berbeda bisa menghasilkan nama sanitasi yang sama (mis. `:` dan
+    // `_`), jadi tambahkan hash stabil agar berkas tidak saling menimpa.
+    final idPart = track.id.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+    final safeFileName =
+        '${idPart.length > 40 ? idPart.substring(0, 40) : idPart}'
+        '_${stableHash(track.id).substring(0, 8)}';
     final tempPath = '$dirPath/$safeFileName.download';
 
-    await _downloadRanged(
-      tempPath: tempPath,
-      initialUrl: audioStreamUrl,
-      track: track,
-      musicService: musicService,
-      quality: quality,
-      onProgress: onProgress,
-    );
+    try {
+      await _downloadRanged(
+        tempPath: tempPath,
+        initialUrl: audioStreamUrl,
+        track: track,
+        musicService: musicService,
+        quality: quality,
+        onProgress: onProgress,
+      );
 
-    // Deteksi kontainer asli dari magic bytes agar ekstensi dan MIME type
-    // sesuai dengan isi berkas.
-    final format = await detectFormatOfFile(tempPath);
-    final filePath = '$dirPath/$safeFileName${format.extension}';
+      // Deteksi kontainer asli dari magic bytes agar ekstensi dan MIME type
+      // sesuai dengan isi berkas.
+      final format = await detectFormatOfFile(tempPath);
+      if (format == AudioFormat.unknown) {
+        throw const RangedRequestException(
+          'Berkas hasil unduhan bukan audio yang dikenali.',
+        );
+      }
 
-    final tempFile = File(tempPath);
-    if (await tempFile.exists()) {
-      if (await File(filePath).exists()) {
-        await File(filePath).delete();
+      final filePath = '$dirPath/$safeFileName${format.extension}';
+      final tempFile = File(tempPath);
+      if (!await tempFile.exists()) {
+        throw const RangedRequestException(
+          'Berkas unduhan hilang sebelum disimpan.',
+        );
+      }
+      // Hapus versi lama dengan ekstensi berbeda agar tidak ada berkas yatim
+      // saat format hasil deteksi berubah (mis. .m4a -> .webm).
+      await for (final entity in Directory(dirPath).list()) {
+        if (entity is! File) continue;
+        final name = entity.uri.pathSegments.last;
+        if (name == '$safeFileName.download') continue;
+        if (name.startsWith('$safeFileName.')) {
+          try {
+            await entity.delete();
+          } catch (_) {
+            // Abaikan: berkas mungkin sedang dipakai pemutar.
+          }
+        }
       }
       await tempFile.rename(filePath);
-    }
 
-    final updatedTrack = track.copyWith(localPath: filePath, mimeType: format.mimeType);
+      final updatedTrack =
+          track.copyWith(localPath: filePath, mimeType: format.mimeType);
 
-    final prefs = await SharedPreferences.getInstance();
-    final list = prefs.getStringList(_downloadKey) ?? [];
-    list.removeWhere((item) {
-      try {
-        return TrackModel.fromJson(item).id == track.id;
-      } catch (_) {
-        return false;
+      final prefs = await SharedPreferences.getInstance();
+      final list = prefs.getStringList(_downloadKey) ?? [];
+      list.removeWhere((item) {
+        try {
+          return TrackModel.fromJson(item).id == track.id;
+        } catch (_) {
+          return false;
+        }
+      });
+      list.insert(0, updatedTrack.toJson());
+      await prefs.setStringList(_downloadKey, list);
+
+      return updatedTrack;
+    } catch (e) {
+      // Jangan tinggalkan berkas .download setengah jadi.
+      final temp = File(tempPath);
+      if (await temp.exists()) {
+        try {
+          await temp.delete();
+        } catch (_) {
+          // Abaikan: pembersihan terbaik yang bisa dilakukan.
+        }
       }
-    });
-    list.insert(0, updatedTrack.toJson());
-    await prefs.setStringList(_downloadKey, list);
-
-    return updatedTrack;
+      rethrow;
+    }
   }
 
   /// Mengunduh berkas audio per potongan dengan header `Range` terbatasi.
@@ -141,57 +185,132 @@ class DownloadService {
   }) async {
     // 256 KB per potongan untuk akselerasi unduhan tanpa membebani CDN.
     const chunkSize = 256 * 1024;
+    const maxRestarts = 2;
     final client = RangedHttpClient();
     var url = initialUrl;
-    var total = 0;
-    var written = 0;
+    var restarts = 0;
 
     try {
-      final sink = File(tempPath).openWrite();
-      try {
-        var position = 0;
-        while (true) {
-          final chunkEnd = position + chunkSize - 1;
-          final chunk = await client.fetchRangeResilient(
-            Uri.parse(url),
-            start: position,
-            end: chunkEnd,
-            onForbidden: () async {
-              // Link ditolak: ambil link baru lalu lanjutkan unduhan.
-              url = await musicService.resolveAudioStream(
-                track,
-                quality: quality,
-                forceRefresh: true,
-              );
-              return Uri.parse(url);
-            },
-          );
+      while (true) {
+        var total = 0;
+        var written = 0;
+        var needsRestart = false;
+        var reachedEnd = false;
 
-          if (chunk.bytes.isEmpty) break;
-          total = chunk.totalBytes ?? total;
-          sink.add(chunk.bytes);
-          written += chunk.bytes.length;
-          position += chunk.bytes.length;
-
-          if (total > 0) {
-            onProgress?.call((written / total).clamp(0.0, 1.0));
+        final sink = File(tempPath).openWrite();
+        try {
+          Future<RangedResponse> fetchChunk(int start, int end) {
+            return client.fetchRangeResilient(
+              Uri.parse(url),
+              start: start,
+              end: end,
+              onForbidden: () async {
+                // Link lama bisa menunjuk kontainer berbeda (WebM -> MP4).
+                // Melanjutkan offset lama berisiko mencampur dua kontainer,
+                // jadi mulai ulang dari byte 0 dengan URL baru.
+                url = await musicService.resolveAudioStream(
+                  track,
+                  quality: quality,
+                  forceRefresh: true,
+                );
+                needsRestart = true;
+                throw const _RestartDownload();
+              },
+            );
           }
 
-          // Potongan terakhir lebih pendek dari ukuran permintaan.
-          if (chunk.bytes.length < chunkSize) break;
-          if (total > 0 && position >= total) break;
+          var position = 0;
+          while (true) {
+            final chunkEnd = position + chunkSize - 1;
+            final chunk = await fetchChunk(position, chunkEnd);
+
+            if (chunk.bytes.isEmpty) {
+              // 416/akhir berkas hanya sah bila sudah ada data sebelumnya.
+              reachedEnd = position > 0;
+              if (!reachedEnd) {
+                throw const RangedRequestException(
+                  'Server tidak mengirim data audio apa pun.',
+                );
+              }
+              break;
+            }
+
+            total = chunk.totalBytes ?? total;
+            sink.add(chunk.bytes);
+            written += chunk.bytes.length;
+            position += chunk.bytes.length;
+
+            if (total > 0) {
+              onProgress?.call((written / total).clamp(0.0, 1.0));
+            }
+
+            if (total > 0 && position >= total) {
+              reachedEnd = true;
+              break;
+            }
+
+            // Potongan lebih pendek dari permintaan bisa berarti EOF, tetapi
+            // juga bisa throttle CDN. Bila total belum diketahui, probe satu
+            // byte untuk memastikan berkas benar-benar habis.
+            if (chunk.bytes.length < chunkSize) {
+              if (total > 0) {
+                reachedEnd = true;
+                break;
+              }
+              final probe = await fetchChunk(position, position);
+              if (probe.bytes.isEmpty) {
+                reachedEnd = true;
+                break;
+              }
+              sink.add(probe.bytes);
+              written += probe.bytes.length;
+              position += probe.bytes.length;
+              total = probe.totalBytes ?? total;
+              if (total > 0) {
+                onProgress?.call((written / total).clamp(0.0, 1.0));
+              }
+              if (total > 0 && position >= total) {
+                reachedEnd = true;
+                break;
+              }
+            }
+          }
+        } on _RestartDownload {
+          // Ditangani setelah sink ditutup.
+        } finally {
+          await sink.flush();
+          await sink.close();
+        }
+
+        if (needsRestart) {
+          if (restarts >= maxRestarts) {
+            throw const RangedRequestException(
+              'Unduhan gagal: server terus menolak link stream.',
+            );
+          }
+          restarts++;
+          onProgress?.call(0);
+          final temp = File(tempPath);
+          if (await temp.exists()) {
+            await temp.delete();
+          }
+          continue;
+        }
+
+        if (!reachedEnd) {
+          throw const RangedRequestException(
+            'Unduhan berhenti sebelum selesai.',
+          );
         }
 
         // Berkas yang terpotong tidak boleh disimpan sebagai unduhan utuh.
-        if (total > 0 && written < total) {
+        if (total > 0 && written != total) {
           throw RangedRequestException(
-            'Unduhan terhenti: hanya $written dari $total byte yang bisa '
+            'Unduhan tidak utuh: hanya $written dari $total byte yang bisa '
             'diambil. YouTube membatasi pengunduhan stream untuk lagu ini.',
           );
         }
-      } finally {
-        await sink.flush();
-        await sink.close();
+        break;
       }
     } finally {
       client.close();
@@ -215,10 +334,22 @@ class DownloadService {
   }
 
   static String getSanitizedFileName(TrackModel track, String extension) {
-    final clean = '${track.artist} - ${track.title}'
-        .replaceAll(RegExp(r'[\\/:*?"<>|]'), '_')
+    var clean = '${track.artist} - ${track.title}'
+        .replaceAll(RegExp(r'[\\/:*?"<>|\x00-\x1F]'), '_')
         .trim();
-    return '$clean$extension';
+    // Titik/spasi di akhir tidak valid pada Windows.
+    clean = clean.replaceAll(RegExp(r'[. ]+$'), '');
+    if (clean.isEmpty) clean = 'audio';
+
+    // Batasi panjang agar aman di semua sistem berkas.
+    final runes = clean.runes.toList();
+    if (runes.length > 50) {
+      clean = String.fromCharCodes(runes.take(50));
+    }
+
+    // Sufiks hash mencegah dua lagu dengan judul/artis sama saling menimpa.
+    final suffix = stableHash(track.id).substring(0, 8);
+    return '$clean [$suffix]$extension';
   }
 
   /// Ekspor berkas audio ke folder yang dapat diakses pengguna.
@@ -279,21 +410,25 @@ class DownloadService {
       }
     }
 
-    final sourceBytes = await sourceFile.readAsBytes();
+    // Hanya baca header ID3 (10 byte) agar tidak memuat seluruh lagu ke RAM.
     int audioOffset = 0;
-    if (sourceBytes.length >= 10 &&
-        sourceBytes[0] == 0x49 &&
-        sourceBytes[1] == 0x44 &&
-        sourceBytes[2] == 0x33) {
-      final synchsafeSize = (sourceBytes[6] << 21) |
-          (sourceBytes[7] << 14) |
-          (sourceBytes[8] << 7) |
-          sourceBytes[9];
-      audioOffset = 10 + synchsafeSize;
-      if (audioOffset > sourceBytes.length) audioOffset = 0;
+    final sourceHandle = await sourceFile.open();
+    try {
+      final header = await sourceHandle.read(10);
+      if (header.length >= 10 &&
+          header[0] == 0x49 &&
+          header[1] == 0x44 &&
+          header[2] == 0x33) {
+        final synchsafeSize = (header[6] << 21) |
+            (header[7] << 14) |
+            (header[8] << 7) |
+            header[9];
+        audioOffset = 10 + synchsafeSize;
+        if (audioOffset > await sourceFile.length()) audioOffset = 0;
+      }
+    } finally {
+      await sourceHandle.close();
     }
-    final audioPayload =
-        audioOffset > 0 ? sourceBytes.sublist(audioOffset) : sourceBytes;
 
     final bool tagged = format.supportsId3;
     final id3Bytes = tagged
@@ -306,22 +441,70 @@ class DownloadService {
         : Uint8List(0);
 
     Future<void> writeTaggedFile(String path) async {
-      final target = File(path);
-      final sink = target.openWrite();
-      if (tagged) {
-        sink.add(id3Bytes);
+      // Tulis ke berkas sementara lalu rename agar ekspor yang gagal di tengah
+      // jalan tidak meninggalkan berkas tujuan yang rusak.
+      final part = File('$path.part');
+      try {
+        final sink = part.openWrite();
+        try {
+          if (tagged) {
+            sink.add(id3Bytes);
+          }
+          await sink.addStream(sourceFile.openRead(audioOffset));
+          await sink.flush();
+        } finally {
+          await sink.close();
+        }
+        final target = File(path);
+        if (await target.exists()) {
+          await target.delete();
+        }
+        await part.rename(path);
+      } catch (e) {
+        if (await part.exists()) {
+          try {
+            await part.delete();
+          } catch (_) {
+            // Abaikan: pembersihan terbaik yang bisa dilakukan.
+          }
+        }
+        rethrow;
       }
-      sink.add(audioPayload);
-      await sink.flush();
-      await sink.close();
     }
 
-    final candidates = [
-      '/storage/emulated/0/$folder',
-      '/sdcard/$folder',
-    ];
+    final candidates = <String>[];
+    if (!kIsWeb && Platform.isAndroid) {
+      try {
+        final external = await getExternalStorageDirectory();
+        if (external != null) {
+          const marker = '/Android/';
+          final root = external.path.split(marker).first;
+          candidates.add('$root/$folder');
+        }
+      } catch (e) {
+        debugPrint('[DownloadService] folder eksternal tidak tersedia: $e');
+      }
+      candidates.add('/storage/emulated/0/$folder');
+      candidates.add('/sdcard/$folder');
+    } else {
+      try {
+        final downloads = await getDownloadsDirectory();
+        if (downloads != null) {
+          candidates.add('${downloads.path}/$folder');
+        }
+      } catch (e) {
+        debugPrint('[DownloadService] folder Downloads tidak tersedia: $e');
+      }
+    }
 
-    for (final path in candidates) {
+    final uniqueCandidates = <String>[];
+    for (final candidate in candidates) {
+      if (!uniqueCandidates.contains(candidate)) {
+        uniqueCandidates.add(candidate);
+      }
+    }
+
+    for (final path in uniqueCandidates) {
       try {
         final dir = Directory(path);
         if (!await dir.exists()) {

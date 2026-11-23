@@ -6,15 +6,17 @@ import 'package:flutter/foundation.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
 import '../models/track_model.dart';
-import 'audio_cache_service.dart';
 import 'youtube_client.dart';
 
-/// Entri cache URL stream beserta waktu penyimpanannya.
+/// Entri cache stream beserta waktu penyimpanannya.
+///
+/// Menyimpan metadata lengkap, bukan hanya URL, agar properti seperti
+/// `isDirectProgressive` tidak hilang saat stream diambil dari cache.
 class _StreamCacheEntry {
-  final String url;
+  final ResolvedAudioStream stream;
   final DateTime storedAt;
 
-  const _StreamCacheEntry(this.url, this.storedAt);
+  const _StreamCacheEntry(this.stream, this.storedAt);
 }
 
 /// Metadata stream audio yang sudah di-resolve dari YouTube.
@@ -110,6 +112,7 @@ class MusicService {
     final q = quality.toLowerCase();
     if (q.contains('hemat') || q.contains('64')) return 64;
     if (q.contains('standar') || q.contains('128')) return 128;
+    if (q.contains('otomatis')) return 128;
     if (q.contains('maksimal') || q.contains('320')) return 320;
     if (q.contains('tinggi') || q.contains('hq') || q.contains('160')) return 192;
     return 320;
@@ -573,15 +576,34 @@ class MusicService {
   }
 
   /// Memuat awal stream URL di background agar transisi lagu berikutnya instan.
-  Future<void> preloadTrackStream(TrackModel track, {String quality = 'Maksimal'}) async {
+  ///
+  /// Tidak mengunduh cache di sini: playback akan mengunduh cache sendiri
+  /// setelah sumber benar-benar dipakai, sehingga tidak ada unduhan ganda dan
+  /// kualitas cache selalu sama dengan kualitas yang diputar.
+  Future<void> preloadTrackStream(
+    TrackModel track, {
+    String quality = 'Otomatis',
+    bool preferProgressive = true,
+  }) async {
     try {
-      final resolved = await resolveAudioStreamInfo(track, quality: quality);
-      if (resolved.isDirectProgressive) {
-        unawaited(AudioCacheService.instance.cacheTrackFromUrl(track.id, resolved.url));
-      }
+      await resolveAudioStreamInfo(
+        track,
+        quality: quality,
+        preferProgressive: preferProgressive,
+      );
     } catch (_) {
       // Abaikan kegagalan preload di background.
     }
+  }
+
+  /// Apakah kualitas ini sebaiknya memakai stream progressive (tag 18).
+  ///
+  /// Hanya mode "Otomatis" yang mengutamakan progressive; pilihan 64/128/160
+  /// kbps harus memakai stream audio-only agar bitrate yang dipilih benar-benar
+  /// diterapkan.
+  static bool shouldPreferProgressiveQuality(String quality) {
+    final q = quality.toLowerCase().trim();
+    return q.isEmpty || q.contains('otomatis') || q.contains('maksimal');
   }
 
   /// Resolusi URL stream audio untuk satu lagu.
@@ -589,13 +611,16 @@ class MusicService {
   /// [forceRefresh] mengabaikan cache sehingga URL baru diambil dari YouTube.
   Future<String> resolveAudioStream(
     TrackModel track, {
-    String quality = 'Maksimal',
+    String quality = 'Otomatis',
     bool forceRefresh = false,
+    bool? preferProgressive,
   }) async {
     final resolved = await resolveAudioStreamInfo(
       track,
       quality: quality,
       forceRefresh: forceRefresh,
+      preferProgressive:
+          preferProgressive ?? shouldPreferProgressiveQuality(quality),
     );
     return resolved.url;
   }
@@ -607,7 +632,7 @@ class MusicService {
   /// ExoPlayer tanpa batasan chunk range 403.
   Future<ResolvedAudioStream> resolveAudioStreamInfo(
     TrackModel track, {
-    String quality = 'Maksimal',
+    String quality = 'Otomatis',
     bool forceRefresh = false,
     String? preferredContainer,
     bool preferProgressive = true,
@@ -621,10 +646,7 @@ class MusicService {
       if (cached != null) {
         final age = DateTime.now().difference(cached.storedAt);
         if (age < streamCacheTtl) {
-          return _describeStream(
-            cached.url,
-            videoId: track.youtubeId ?? _videoIdCache[track.id] ?? '',
-          );
+          return cached.stream;
         }
         _streamUrlCache.remove(cacheKey);
       }
@@ -707,11 +729,7 @@ class MusicService {
     }
 
     final streamUrl = selected.url.toString();
-    if (_streamUrlCache.length >= 200) {
-      _streamUrlCache.remove(_streamUrlCache.keys.first);
-    }
-    _streamUrlCache[cacheKey] = _StreamCacheEntry(streamUrl, DateTime.now());
-    return _describeStream(
+    final resolved = _describeStream(
       streamUrl,
       videoId: videoId,
       codec: selected is AudioStreamInfo ? selected.audioCodec : 'mp4a.40.2',
@@ -719,6 +737,11 @@ class MusicService {
       totalBytes: selected.size.totalBytes,
       isDirectProgressive: isProgressive,
     );
+    if (_streamUrlCache.length >= 200) {
+      _streamUrlCache.remove(_streamUrlCache.keys.first);
+    }
+    _streamUrlCache[cacheKey] = _StreamCacheEntry(resolved, DateTime.now());
+    return resolved;
   }
 
   /// Memilih stream sesuai kualitas, dengan pilihan kontainer bila diminta.

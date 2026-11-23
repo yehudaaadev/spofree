@@ -25,9 +25,13 @@ void main() {
 
     test('exportToJsonString dan importFromJsonString round-trip valid', () {
       final liked = [sampleTrack1];
-      final playlists = {
-        'Favorit Santai': [sampleTrack1, sampleTrack2],
-      };
+      final playlists = [
+        BackupPlaylist(
+          id: 'pl_favorit',
+          name: 'Favorit Santai',
+          tracks: [sampleTrack1, sampleTrack2],
+        ),
+      ];
 
       final jsonStr = PlaylistBackupService.exportToJsonString(
         likedTracks: liked,
@@ -36,11 +40,31 @@ void main() {
 
       final payload = PlaylistBackupService.importFromJsonString(jsonStr);
       expect(payload, isNotNull);
-      expect(payload!.version, equals(1));
+      expect(payload!.version, equals(2));
       expect(payload.likedTracks.length, equals(1));
       expect(payload.likedTracks.first.title, equals('Hati-Hati di Jalan'));
-      expect(payload.playlists.containsKey('Favorit Santai'), isTrue);
-      expect(payload.playlists['Favorit Santai']!.length, equals(2));
+      expect(payload.playlists.length, equals(1));
+      expect(payload.playlists.first.id, equals('pl_favorit'));
+      expect(payload.playlists.first.name, equals('Favorit Santai'));
+      expect(payload.playlists.first.tracks.length, equals(2));
+    });
+
+    test('backup v1 dengan nama sebagai key tetap bisa dibaca', () {
+      const legacyJson = '''
+{
+  "format": "WaveMusicBackup",
+  "version": 1,
+  "likedTracks": [],
+  "playlists": {
+    "Favorit Santai": []
+  }
+}
+''';
+      final payload = PlaylistBackupService.importFromJsonString(legacyJson);
+      expect(payload, isNotNull);
+      expect(payload!.playlists.length, equals(1));
+      expect(payload.playlists.first.name, equals('Favorit Santai'));
+      expect(payload.playlists.first.id, startsWith('pl_'));
     });
 
     test('exportToM3u menghasilkan format #EXTM3U yang benar', () {
@@ -52,7 +76,12 @@ void main() {
       expect(m3uStr, contains('#EXTM3U'));
       expect(m3uStr, contains('#PLAYLIST:Daftar Lagu'));
       expect(m3uStr, contains('#EXTINF:242,Tulus - Hati-Hati di Jalan'));
-      expect(m3uStr, contains('abc12345678'));
+      expect(
+        m3uStr,
+        contains('https://www.youtube.com/watch?v=abc12345678'),
+      );
+      // Track tanpa localPath/youtubeId tidak ditulis sebagai ID internal.
+      expect(m3uStr, isNot(contains('track-2')));
     });
 
     test('importFromM3u berhasil mengurai track dari baris #EXTINF', () {

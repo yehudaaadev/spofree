@@ -54,6 +54,14 @@ class _LibraryTabState extends State<LibraryTab> {
         list.sort((a, b) => b.durationMs.compareTo(a.durationMs));
         break;
       default:
+        list.sort((a, b) {
+          final aTime = a.likedAt ?? 0;
+          final bTime = b.likedAt ?? 0;
+          if (aTime != bTime) {
+            return bTime.compareTo(aTime);
+          }
+          return 0;
+        });
         break;
     }
     return list;
@@ -167,7 +175,41 @@ class _LibraryTabState extends State<LibraryTab> {
           ),
         ],
       ),
+    ).whenComplete(controller.dispose);
+  }
+
+  /// Dialog konfirmasi sebelum menghapus data pengguna.
+  Future<bool> _confirmDelete(
+    BuildContext context, {
+    required String title,
+    required String message,
+  }) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.surface,
+        title: Text(title, style: const TextStyle(color: Colors.white)),
+        content: Text(
+          message,
+          style: const TextStyle(color: AppTheme.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text(
+              'Batal',
+              style: TextStyle(color: AppTheme.textSecondary),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Hapus', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
     );
+    return result ?? false;
   }
 
   @override
@@ -386,8 +428,28 @@ class _LibraryTabState extends State<LibraryTab> {
                       ),
                       onPressed: library.isBulkDownloading
                           ? null
-                          : () {
-                              library.bulkDownloadTracks(displayTracks);
+                          : () async {
+                              await library.bulkDownloadTracks(displayTracks);
+                              if (!mounted) return;
+                              final failures =
+                                  library.lastBulkDownloadFailures;
+                              if (failures.isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Semua lagu berhasil diunduh.'),
+                                  ),
+                                );
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      '${failures.length} lagu gagal diunduh: '
+                                      '${failures.take(3).join(', ')}'
+                                      '${failures.length > 3 ? ', …' : ''}',
+                                    ),
+                                  ),
+                                );
+                              }
                             },
                     ),
                   const SizedBox(width: 8),
@@ -462,7 +524,9 @@ class _LibraryTabState extends State<LibraryTab> {
                   ),
                 ),
                 subtitle: Text(
-                  '${track.artist} • ${track.formattedDuration}',
+                  !isOffline && track.likedAt != null && track.likedAt! > 0
+                      ? '${track.artist} • ${track.formattedDuration} • ${track.formattedLikedDate}'
+                      : '${track.artist} • ${track.formattedDuration}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
@@ -478,7 +542,17 @@ class _LibraryTabState extends State<LibraryTab> {
                           ),
                           IconButton(
                             icon: const Icon(Icons.delete_outline, color: AppTheme.textSecondary, size: 20),
-                            onPressed: () => library.removeDownloadedTrack(track.id),
+                            onPressed: () async {
+                              final confirmed = await _confirmDelete(
+                                context,
+                                title: 'Hapus Unduhan?',
+                                message:
+                                    'Berkas "${track.title}" akan dihapus dari perangkat.',
+                              );
+                              if (confirmed) {
+                                await library.removeDownloadedTrack(track.id);
+                              }
+                            },
                           ),
                         ],
                       )
@@ -548,7 +622,17 @@ class _LibraryTabState extends State<LibraryTab> {
           ),
           trailing: IconButton(
             icon: const Icon(Icons.delete_outline, color: AppTheme.textSecondary, size: 20),
-            onPressed: () => library.deletePlaylist(playlist.id),
+            onPressed: () async {
+              final confirmed = await _confirmDelete(
+                context,
+                title: 'Hapus Playlist?',
+                message:
+                    'Playlist "${playlist.name}" beserta daftar lagunya akan dihapus. Lagu yang sudah diunduh tetap tersimpan.',
+              );
+              if (confirmed) {
+                await library.deletePlaylist(playlist.id);
+              }
+            },
           ),
           onTap: () {
             if (playlist.tracks.isNotEmpty) {
@@ -972,14 +1056,19 @@ class _LibraryTabState extends State<LibraryTab> {
                               ),
                               onPressed: () async {
                                 final lib = context.read<LibraryProvider>();
-                                final playlistMap = <String, List<TrackModel>>{};
-                                for (final p in lib.playlists) {
-                                  playlistMap[p.name] = p.tracks;
-                                }
+                                final backupPlaylists = lib.playlists
+                                    .map(
+                                      (p) => BackupPlaylist(
+                                        id: p.id,
+                                        name: p.name,
+                                        tracks: p.tracks,
+                                      ),
+                                    )
+                                    .toList();
                                 try {
                                   final file = await PlaylistBackupService.saveBackupToFile(
                                     likedTracks: lib.likedList,
-                                    playlists: playlistMap,
+                                    playlists: backupPlaylists,
                                   );
                                   if (context.mounted) {
                                     Navigator.pop(context);
@@ -1032,73 +1121,102 @@ class _LibraryTabState extends State<LibraryTab> {
     );
   }
 
-  void _showRestoreDialog(BuildContext context) {
+  Future<void> _showRestoreDialog(BuildContext context) async {
     final controller = TextEditingController();
-    showDialog(
+    var replaceExisting = false;
+    await showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E1E),
-        title: const Text('Pulihkan dari JSON atau M3U', style: TextStyle(color: Colors.white, fontSize: 16)),
-        content: TextField(
-          controller: controller,
-          maxLines: 8,
-          style: const TextStyle(color: Colors.white, fontSize: 12),
-          decoration: const InputDecoration(
-            hintText: 'Tempel isi teks berkas JSON atau M3U di sini...',
-            hintStyle: TextStyle(color: Colors.white38, fontSize: 12),
-            filled: true,
-            fillColor: Color(0xFF282828),
-            border: OutlineInputBorder(),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: const Color(0xFF1E1E1E),
+          title: const Text('Pulihkan dari JSON atau M3U', style: TextStyle(color: Colors.white, fontSize: 16)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: controller,
+                maxLines: 8,
+                style: const TextStyle(color: Colors.white, fontSize: 12),
+                decoration: const InputDecoration(
+                  hintText: 'Tempel isi teks berkas JSON atau M3U di sini...',
+                  hintStyle: TextStyle(color: Colors.white38, fontSize: 12),
+                  filled: true,
+                  fillColor: Color(0xFF282828),
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 8),
+              CheckboxListTile(
+                value: replaceExisting,
+                onChanged: (value) =>
+                    setDialogState(() => replaceExisting = value ?? false),
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                activeColor: AppTheme.primaryGreen,
+                title: const Text(
+                  'Timpa playlist dengan ID yang sama',
+                  style: TextStyle(color: Colors.white, fontSize: 12),
+                ),
+                subtitle: const Text(
+                  'Jika tidak dicentang, lagu dari backup akan digabung tanpa duplikat.',
+                  style: TextStyle(color: Colors.white54, fontSize: 11),
+                ),
+              ),
+            ],
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Batal', style: TextStyle(color: Colors.white54)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryGreen, foregroundColor: Colors.black),
-            onPressed: () async {
-              final text = controller.text.trim();
-              if (text.isEmpty) return;
-              final lib = context.read<LibraryProvider>();
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Batal', style: TextStyle(color: Colors.white54)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryGreen, foregroundColor: Colors.black),
+              onPressed: () async {
+                final text = controller.text.trim();
+                if (text.isEmpty) return;
+                final lib = context.read<LibraryProvider>();
 
-              if (text.startsWith('{')) {
-                final payload = PlaylistBackupService.importFromJsonString(text);
-                if (payload != null) {
-                  await lib.restoreBackup(payload);
+                if (text.startsWith('{')) {
+                  final payload = PlaylistBackupService.importFromJsonString(text);
+                  if (payload != null) {
+                    await lib.restoreBackup(
+                      payload,
+                      replaceExisting: replaceExisting,
+                    );
+                    if (ctx.mounted) Navigator.pop(ctx);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Berhasil memulihkan ${payload.likedTracks.length} lagu disukai dan ${payload.playlists.length} playlist')),
+                      );
+                    }
+                    return;
+                  }
+                }
+
+                final tracks = PlaylistBackupService.importFromM3u(text);
+                if (tracks.isNotEmpty) {
+                  await lib.importFullPlaylist('Impor M3U', tracks);
                   if (ctx.mounted) Navigator.pop(ctx);
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Berhasil memulihkan ${payload.likedTracks.length} lagu disukai dan ${payload.playlists.length} playlist')),
+                      SnackBar(content: Text('Berhasil mengimpor ${tracks.length} lagu dari M3U')),
                     );
                   }
                   return;
                 }
-              }
 
-              final tracks = PlaylistBackupService.importFromM3u(text);
-              if (tracks.isNotEmpty) {
-                await lib.importFullPlaylist('Impor M3U', tracks);
-                if (ctx.mounted) Navigator.pop(ctx);
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Berhasil mengimpor ${tracks.length} lagu dari M3U')),
+                if (ctx.mounted) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    const SnackBar(content: Text('Format JSON atau M3U tidak valid')),
                   );
                 }
-                return;
-              }
-
-              if (ctx.mounted) {
-                ScaffoldMessenger.of(ctx).showSnackBar(
-                  const SnackBar(content: Text('Format JSON atau M3U tidak valid')),
-                );
-              }
-            },
-            child: const Text('Pulihkan', style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-        ],
+              },
+              child: const Text('Pulihkan', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
       ),
     );
+    controller.dispose();
   }
 }

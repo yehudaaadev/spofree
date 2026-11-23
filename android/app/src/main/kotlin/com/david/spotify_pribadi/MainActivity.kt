@@ -1,6 +1,8 @@
 package com.david.spotify_pribadi
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -25,7 +27,9 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : AudioServiceActivity() {
     private val channelName = "com.david.spotify_pribadi/storage"
     private val requestCodeAllFiles = 9137
+    private val requestCodeNotifications = 9138
     private var pendingPermissionResult: MethodChannel.Result? = null
+    private var pendingNotificationResult: MethodChannel.Result? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -35,6 +39,8 @@ class MainActivity : AudioServiceActivity() {
                 when (call.method) {
                     "hasPermission" -> result.success(hasAllFilesAccess())
                     "requestPermission" -> requestAllFilesAccess(result)
+                    "requestNotificationPermission" ->
+                        requestNotificationPermission(result)
                     "openUrl" -> {
                         val url = call.argument<String>("url")
                         if (url != null) {
@@ -72,6 +78,42 @@ class MainActivity : AudioServiceActivity() {
             pendingPermissionResult?.success(granted)
             pendingPermissionResult = null
         }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == requestCodeNotifications) {
+            val granted = grantResults.isNotEmpty() &&
+                grantResults[0] == PackageManager.PERMISSION_GRANTED
+            pendingNotificationResult?.success(granted)
+            pendingNotificationResult = null
+        }
+    }
+
+    private fun requestNotificationPermission(result: MethodChannel.Result) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            result.success(true)
+            return
+        }
+        if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            result.success(true)
+            return
+        }
+        if (pendingNotificationResult != null) {
+            result.error("IN_PROGRESS", "Permintaan izin sedang berjalan", null)
+            return
+        }
+        pendingNotificationResult = result
+        requestPermissions(
+            arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+            requestCodeNotifications
+        )
     }
 
     private fun hasAllFilesAccess(): Boolean {

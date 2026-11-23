@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -17,6 +18,13 @@ import 'package:spotify_pribadi/services/youtube_stream_source.dart';
 /// manifest (sesi). Bila pembatasan ini terjadi, tes dilewati karena itu
 /// kondisi lingkungan, bukan kegagalan kode.
 void main() {
+  // Tes integrasi ini memanggil CDN YouTube sungguhan dan bisa gagal karena
+  // kuota/geo-blocking. Jalankan dengan WAVE_NETWORK_TESTS=1 bila ingin
+  // memverifikasinya; CI default hanya menjalankan tes offline.
+  final runNetworkTests = Platform.environment['WAVE_NETWORK_TESTS'] == '1';
+  const networkSkipReason =
+      'Butuh jaringan ke CDN YouTube (set WAVE_NETWORK_TESTS=1).';
+
   // Video YouTube yang stabil untuk pengujian.
   const videoId = 'ma4sO59mcC4';
 
@@ -45,7 +53,7 @@ void main() {
       () async {
     final source = YouTubeStreamSource(
       track: track,
-      quality: 'Maksimal (320 kbps High Quality)',
+      quality: 'Otomatis (paling lancar, ~96-128 kbps)',
       musicService: musicService,
     );
 
@@ -82,13 +90,13 @@ void main() {
 
     expect(bytes.length, response.contentLength);
     _expectValidContainer(bytes);
-  });
+  }, skip: runNetworkTests ? false : networkSkipReason);
 
   test('request range mengembalikan byte persis pada offset yang diminta',
       () async {
     final source = YouTubeStreamSource(
       track: track,
-      quality: 'Maksimal (320 kbps High Quality)',
+      quality: 'Otomatis (paling lancar, ~96-128 kbps)',
       musicService: musicService,
     );
 
@@ -120,7 +128,7 @@ void main() {
     // Bandingkan dengan pengambilan langsung rentang yang sama.
     final info = await musicService.resolveAudioStreamInfo(
       track,
-      quality: 'Maksimal (320 kbps High Quality)',
+      quality: 'Otomatis (paling lancar, ~96-128 kbps)',
     );
     final direct = await RangedHttpClient().fetchRange(
       Uri.parse(info.url),
@@ -128,7 +136,7 @@ void main() {
       end: end - 1,
     );
     expect(bytes, direct.bytes);
-  });
+  }, skip: runNetworkTests ? false : networkSkipReason);
 
   test('request range di pertengahan media (seek) langsung terambil tanpa loop dari awal',
       () async {
@@ -163,12 +171,12 @@ void main() {
       return;
     }
     expect(bytes.length, end - start);
-  });
+  }, skip: runNetworkTests ? false : networkSkipReason);
 
   test('preferredContainer mp4 menghasilkan stream MP4 (AAC)', () async {
     final source = YouTubeStreamSource(
       track: track,
-      quality: 'Maksimal (320 kbps High Quality)',
+      quality: 'Otomatis (paling lancar, ~96-128 kbps)',
       musicService: musicService,
       preferredContainer: 'mp4',
     );
@@ -189,7 +197,7 @@ void main() {
     }
     expect(bytes.length, 1024);
     expect(String.fromCharCodes(bytes.sublist(4, 8)), 'ftyp');
-  });
+  }, skip: runNetworkTests ? false : networkSkipReason);
 
   test('containerFromContentType memetakan tipe ke nama kontainer', () {
     expect(ResolvedAudioStream.containerFromContentType('audio/webm'), 'webm');

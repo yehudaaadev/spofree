@@ -34,6 +34,7 @@ class YouTubeStreamSource extends StreamAudioSource {
     required this.musicService,
     RangedHttpClient? httpClient,
     this.preferredContainer,
+    this.preferProgressive = false,
     super.tag,
   }) : _httpClient = httpClient ?? RangedHttpClient();
 
@@ -43,6 +44,10 @@ class YouTubeStreamSource extends StreamAudioSource {
 
   /// Kontainer yang diminta, mis. `mp4` untuk fallback AAC.
   final String? preferredContainer;
+
+  /// Harus sama dengan preferensi saat sumber ini dipilih. Tanpa ini, sumber
+  /// proxy akan me-resolve ulang ke tag 18 dan mengabaikan pilihan kualitas.
+  final bool preferProgressive;
 
   final RangedHttpClient _httpClient;
 
@@ -154,6 +159,12 @@ class YouTubeStreamSource extends StreamAudioSource {
     _lastRequestAt = DateTime.now();
   }
 
+  /// Menutup koneksi HTTP milik sumber ini.
+  ///
+  /// Wajib dipanggil saat sumber diganti; tanpa ini file descriptor/socket
+  /// menumpuk setiap kali lagu berganti.
+  void close() => _httpClient.close();
+
   /// Mengambil (dan menyimpan) metadata stream yang sudah di-resolve.
   Future<ResolvedAudioStream> _resolve({bool forceRefresh = false}) async {
     final cached = _resolved;
@@ -164,6 +175,7 @@ class YouTubeStreamSource extends StreamAudioSource {
       quality: quality,
       forceRefresh: forceRefresh,
       preferredContainer: preferredContainer,
+      preferProgressive: preferProgressive,
     );
     _resolved = resolved;
     return resolved;
