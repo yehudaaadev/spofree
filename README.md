@@ -1,9 +1,15 @@
 # Wave Music
 
 <p align="center">
-  <a href="https://github.com/yehudaaadev/spofree/releases/latest/download/WaveMusic.apk">
-    <img src="https://img.shields.io/badge/Download_APK-F43F5E?style=for-the-badge&logo=android&logoColor=white" alt="Download APK">
+  <a href="https://github.com/yehudaaadev/spofree/releases/latest/download/WaveMusic-arm64-v8a.apk">
+    <img src="https://img.shields.io/badge/Download_64--bit-F43F5E?style=for-the-badge&logo=android&logoColor=white" alt="Download APK 64-bit">
   </a>
+  <a href="https://github.com/yehudaaadev/spofree/releases/latest/download/WaveMusic-armeabi-v7a.apk">
+    <img src="https://img.shields.io/badge/Download_32--bit-16161B?style=for-the-badge&logo=android&logoColor=white" alt="Download APK 32-bit">
+  </a>
+</p>
+
+<p align="center">
   <a href="https://github.com/yehudaaadev/spofree/releases/latest">
     <img src="https://img.shields.io/github/v/release/yehudaaadev/spofree?style=for-the-badge&color=F43F5E&label=versi" alt="Versi terbaru">
   </a>
@@ -13,9 +19,18 @@
 </p>
 
 <p align="center">
-  <strong>Versi 1.1.0 · build 6</strong> — tombol di atas mengunduh APK terbaru
-  langsung dari GitHub Releases, tanpa membuka menu Releases.
+  <strong>Versi 1.1.0 · build 6</strong>
 </p>
+
+| Pilih APK | Untuk perangkat | Catatan |
+|---|---|---|
+| **`WaveMusic-arm64-v8a.apk`** | HP Android **64-bit** — mayoritas HP 2016 ke atas | Disarankan, ukuran lebih kecil |
+| **`WaveMusic-armeabi-v7a.apk`** | HP Android **32-bit** — HP lama / entry-level | Untuk HP yang tidak mendukung 64-bit |
+
+> **Ini bukan beda versi Android.** Keduanya mendukung Android 7+. Bedanya
+> adalah arsitektur CPU: **64-bit (arm64-v8a)** vs **32-bit (armeabi-v7a)**.
+> Kalau ragu, coba yang **64-bit** dulu; kalau gagal dipasang, gunakan yang
+> **32-bit**.
 
 > **Status distribusi:** Wave Music adalah proyek pribadi/edukasi. APK saat ini
 > dibangun tanpa keystore rilis resmi, jadi gunakan untuk pengujian pribadi.
@@ -165,15 +180,17 @@ HTTPS. Jangan mengganti aturan ini dengan `android:usesCleartextTraffic="true"`.
    - `build/app/outputs/flutter-apk/` (output Gradle)
 
    Berkas per-ABI:
-   - `app-arm64-v8a-release.apk` — HP modern (Android 7+ ARM 64-bit), **paling hemat kuota**.
-   - `app-armeabi-v7a-release.apk` — HP lama ARM 32-bit.
-   - `app-x86_64-release.apk` — hanya untuk emulator.
+   - `app-arm64-v8a-release.apk` — HP Android **64-bit** (mayoritas HP 2016+), **disarankan**.
+   - `app-armeabi-v7a-release.apk` — HP Android **32-bit** (HP lama / entry-level).
+   - `app-x86_64-release.apk` — **hanya emulator**, jangan dipasang di HP.
+
+   Keduanya mendukung Android 7+. Bedanya arsitektur CPU, bukan versi Android.
 
    Pasang di HP: salin APK ke HP lalu ketuk file-nya (aktifkan "Install unknown apps" bila diminta).
 
-4. Untuk distribusi, lampirkan APK ke **GitLab Releases** secara manual. Repo ini
-   tidak menyimpan binary APK; menu pembaruan di aplikasi hanya membuka halaman
-   rilis (`/-/releases`) agar pengguna mengunduh dari sumber resmi.
+4. Untuk distribusi, push tag `v*` (misalnya `v1.1.1`). Workflow GitHub Actions
+   otomatis membangun dan melampirkan kedua APK ke **GitHub Releases**. Repo ini
+   tidak menyimpan binary APK.
 
 ## Pengujian
 
