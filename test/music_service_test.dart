@@ -108,6 +108,29 @@ void main() {
       );
     });
 
+    test('cleanTitle tidak memotong kata yang mengandung ft atau feat', () {
+      // Regresi: regex lama menghapus "ft"/"feat" di tengah kata.
+      expect(TrackModel.cleanTitle('After Dark'), 'After Dark');
+      expect(TrackModel.cleanTitle('Softcore'), 'Softcore');
+      expect(TrackModel.cleanTitle('Feather'), 'Feather');
+      expect(TrackModel.cleanTitle('Defeat'), 'Defeat');
+      expect(
+        TrackModel.cleanTitle('After Dark (feat. Someone)'),
+        'After Dark',
+      );
+    });
+
+    test('cleanTitle membersihkan kredit fitur di akhir judul', () {
+      expect(TrackModel.cleanTitle('Shape of You (feat. Someone)'), 'Shape of You');
+      expect(TrackModel.cleanTitle('Song ft. Artist'), 'Song');
+      expect(TrackModel.cleanTitle('Song [ft. Artist]'), 'Song');
+      expect(TrackModel.cleanTitle('Song feat. Artist'), 'Song');
+      expect(
+        TrackModel.cleanTitle('Song (feat. Artist) [Official Video]'),
+        'Song',
+      );
+    });
+
     test('cleanArtist membersihkan suffix - Topic dan Vevo', () {
       expect(TrackModel.cleanArtist('Oasis - Topic'), 'Oasis');
       expect(TrackModel.cleanArtist('TulusVEVO'), 'Tulus');

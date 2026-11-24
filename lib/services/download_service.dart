@@ -333,6 +333,21 @@ class DownloadService {
     }
   }
 
+  /// Membersihkan nama folder ekspor agar tidak bisa keluar dari direktori
+  /// tujuan. Nama yang hanya terdiri dari titik (`.`, `..`, `...`) ditolak
+  /// karena dapat dipakai untuk path traversal.
+  static String sanitizeFolderName(String folderName) {
+    var clean = folderName
+        .trim()
+        .replaceAll(RegExp(r'[\\/:*?"<>|\x00-\x1F]'), '_');
+    if (clean.isEmpty || RegExp(r'^\.+$').hasMatch(clean)) {
+      return 'Download';
+    }
+    // Titik/spasi di akhir tidak valid pada Windows.
+    clean = clean.replaceAll(RegExp(r'[. ]+$'), '');
+    return clean.isEmpty ? 'Download' : clean;
+  }
+
   static String getSanitizedFileName(TrackModel track, String extension) {
     var clean = '${track.artist} - ${track.title}'
         .replaceAll(RegExp(r'[\\/:*?"<>|\x00-\x1F]'), '_')
@@ -387,9 +402,7 @@ class DownloadService {
       );
     }
 
-    final cleanFolder =
-        folderName.trim().replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
-    final folder = cleanFolder.isEmpty ? 'Download' : cleanFolder;
+    final folder = sanitizeFolderName(folderName);
 
     final format = await detectFormatOfFile(sourceFile.path);
     final fileName = getSanitizedFileName(track, format.extension);

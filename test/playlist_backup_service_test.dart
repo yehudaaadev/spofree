@@ -103,5 +103,57 @@ def87654321
       expect(tracks[1].title, equals('To the Bone'));
       expect(tracks[1].artist, equals('Pamungkas'));
     });
+
+    test('importFromM3u tidak memakai metadata #EXTINF yang rusak', () {
+      const rawM3u = '''
+#EXTM3U
+#EXTINF:100,Artis - Lagu Pertama
+https://example.com/satu.mp3
+#EXTINF:rusak
+https://example.com/dua.mp3
+''';
+
+      final tracks = PlaylistBackupService.importFromM3u(rawM3u);
+      expect(tracks.length, equals(2));
+      expect(tracks[1].title, equals('dua'));
+      expect(tracks[1].artist, equals('Artis Tidak Diketahui'));
+      expect(tracks[1].durationMs, equals(0));
+    });
+
+    test('importFromM3u mengabaikan durasi negatif (siaran langsung)', () {
+      const rawM3u = '''
+#EXTM3U
+#EXTINF:-1,Artis - Siaran Langsung
+https://example.com/live.mp3
+''';
+
+      final tracks = PlaylistBackupService.importFromM3u(rawM3u);
+      expect(tracks.single.durationMs, equals(0));
+    });
+
+    test('importFromM3u hanya mengenali host YouTube yang benar', () {
+      const rawM3u = '''
+#EXTM3U
+https://notyoutube.com/watch?v=abc12345678
+https://music.youtube.com/watch?v=def87654321
+''';
+
+      final tracks = PlaylistBackupService.importFromM3u(rawM3u);
+      expect(tracks[0].youtubeId, isNull);
+      expect(tracks[0].id, startsWith('url_'));
+      expect(tracks[1].youtubeId, equals('def87654321'));
+      expect(tracks[1].id, equals('yt_def87654321'));
+    });
+
+    test('importFromM3u mengambil judul dari path Windows', () {
+      const rawM3u = '''
+#EXTM3U
+C:\\Musik\\lagu_saya.mp3
+''';
+
+      final tracks = PlaylistBackupService.importFromM3u(rawM3u);
+      expect(tracks.single.title, equals('lagu saya'));
+      expect(tracks.single.localPath, equals('C:\\Musik\\lagu_saya.mp3'));
+    });
   });
 }

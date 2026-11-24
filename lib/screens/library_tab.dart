@@ -27,6 +27,7 @@ class _LibraryTabState extends State<LibraryTab> {
   int _selectedFilter = 0; // 0: Liked, 1: Downloaded, 2: Playlists, 3: File Lokal
   List<TrackModel> _localFiles = [];
   bool _isLoadingLocal = false;
+  String? _localScanError;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
@@ -784,7 +785,10 @@ class _LibraryTabState extends State<LibraryTab> {
   }
 
   Future<void> _scanLocalFiles() async {
-    setState(() => _isLoadingLocal = true);
+    setState(() {
+      _isLoadingLocal = true;
+      _localScanError = null;
+    });
     try {
       // Android 11+ memerlukan izin akses penyimpanan penuh untuk memindai
       // folder publik perangkat.
@@ -807,7 +811,16 @@ class _LibraryTabState extends State<LibraryTab> {
         _localFiles = await LocalAudioService.scanLocalAudioFiles();
       }
     } catch (e) {
+      debugPrint('[LibraryTab] pemindaian file lokal gagal: $e');
       _localFiles = [];
+      if (mounted) {
+        _localScanError = 'Pemindaian file lokal gagal. Coba lagi.';
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Pemindaian file lokal gagal. Coba lagi.'),
+          ),
+        );
+      }
     }
     if (mounted) setState(() => _isLoadingLocal = false);
   }
@@ -824,10 +837,17 @@ class _LibraryTabState extends State<LibraryTab> {
               color: AppTheme.textSecondary.withValues(alpha: 0.4),
             ),
             const SizedBox(height: 12),
-            const Text(
-              'Pindai file audio (.mp3, .m4a, .flac, .wav)\nyang tersimpan di perangkat',
+            Text(
+              _localScanError ??
+                  'Pindai file audio (.mp3, .m4a, .flac, .wav)\nyang tersimpan di perangkat',
               textAlign: TextAlign.center,
-              style: TextStyle(color: AppTheme.textSecondary, fontSize: 14, height: 1.5),
+              style: TextStyle(
+                color: _localScanError != null
+                    ? Colors.redAccent
+                    : AppTheme.textSecondary,
+                fontSize: 14,
+                height: 1.5,
+              ),
             ),
             const SizedBox(height: 20),
             ElevatedButton.icon(
@@ -1444,6 +1464,7 @@ class _LibraryTabState extends State<LibraryTab> {
   Future<void> _showRestoreDialog(BuildContext context) async {
     final controller = TextEditingController();
     var replaceExisting = false;
+    var isWorking = false;
     await showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -1491,47 +1512,71 @@ class _LibraryTabState extends State<LibraryTab> {
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryGreen, foregroundColor: Colors.black),
-              onPressed: () async {
-                final text = controller.text.trim();
-                if (text.isEmpty) return;
-                final lib = context.read<LibraryProvider>();
+              onPressed: isWorking
+                  ? null
+                  : () async {
+                      final text = controller.text.trim();
+                      if (text.isEmpty) return;
+                      final lib = context.read<LibraryProvider>();
+                      setDialogState(() => isWorking = true);
 
-                if (text.startsWith('{')) {
-                  final payload = PlaylistBackupService.importFromJsonString(text);
-                  if (payload != null) {
-                    await lib.restoreBackup(
-                      payload,
-                      replaceExisting: replaceExisting,
-                    );
-                    if (ctx.mounted) Navigator.pop(ctx);
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Berhasil memulihkan ${payload.likedTracks.length} lagu disukai dan ${payload.playlists.length} playlist')),
-                      );
-                    }
-                    return;
-                  }
-                }
+                      try {
+                        if (text.startsWith('{')) {
+                          final payload = PlaylistBackupService.importFromJsonString(text);
+                          if (payload != null) {
+                            await lib.restoreBackup(
+                              payload,
+                              replaceExisting: replaceExisting,
+                            );
+                            if (ctx.mounted) Navigator.pop(ctx);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Berhasil memulihkan ${payload.likedTracks.length} lagu disukai dan ${payload.playlists.length} playlist')),
+                              );
+                            }
+                            return;
+                          }
+                        }
 
-                final tracks = PlaylistBackupService.importFromM3u(text);
-                if (tracks.isNotEmpty) {
-                  await lib.importFullPlaylist('Impor M3U', tracks);
-                  if (ctx.mounted) Navigator.pop(ctx);
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Berhasil mengimpor ${tracks.length} lagu dari M3U')),
-                    );
-                  }
-                  return;
-                }
+                        final tracks = PlaylistBackupService.importFromM3u(text);
+                        if (tracks.isNotEmpty) {
+                          await lib.importFullPlaylist('Impor M3U', tracks);
+                          if (ctx.mounted) Navigator.pop(ctx);
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Berhasil mengimpor ${tracks.length} lagu dari M3U')),
+                            );
+                          }
+                          return;
+                        }
 
-                if (ctx.mounted) {
-                  ScaffoldMessenger.of(ctx).showSnackBar(
-                    const SnackBar(content: Text('Format JSON atau M3U tidak valid')),
-                  );
-                }
-              },
-              child: const Text('Pulihkan', style: TextStyle(fontWeight: FontWeight.bold)),
+                        if (ctx.mounted) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            const SnackBar(content: Text('Format JSON atau M3U tidak valid')),
+                          );
+                        }
+                      } catch (e) {
+                        debugPrint('[LibraryTab] gagal memulihkan: $e');
+                        if (ctx.mounted) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            const SnackBar(
+                              content: Text('Gagal memulihkan data. Periksa isi berkas lalu coba lagi.'),
+                            ),
+                          );
+                        }
+                      } finally {
+                        if (ctx.mounted) {
+                          setDialogState(() => isWorking = false);
+                        }
+                      }
+                    },
+              child: isWorking
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
+                    )
+                  : const Text('Pulihkan', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
           ],
         ),

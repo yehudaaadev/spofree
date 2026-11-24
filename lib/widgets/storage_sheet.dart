@@ -35,14 +35,25 @@ class _StorageSheetState extends State<StorageSheet> {
     _reload();
   }
 
-  Future<void> _reload() async {
+  Future<void> _reload({bool showError = true}) async {
     if (mounted) setState(() => _loading = true);
-    final snapshot = await StorageStatsService.load();
-    if (!mounted) return;
-    setState(() {
-      _snapshot = snapshot;
-      _loading = false;
-    });
+    try {
+      final snapshot = await StorageStatsService.load();
+      if (!mounted) return;
+      setState(() {
+        _snapshot = snapshot;
+        _loading = false;
+      });
+    } catch (e) {
+      debugPrint('[StorageSheet] gagal memuat statistik: $e');
+      if (!mounted) return;
+      setState(() => _loading = false);
+      if (showError) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Gagal memuat statistik penyimpanan.')),
+        );
+      }
+    }
   }
 
   Future<bool> _confirm(String title, String message) async {
@@ -83,13 +94,23 @@ class _StorageSheetState extends State<StorageSheet> {
     );
     if (!confirmed || !mounted) return;
     setState(() => _working = true);
-    await AudioCacheService.instance.clearCache();
-    await _reload();
-    if (!mounted) return;
-    setState(() => _working = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Cache audio dibersihkan.')),
-    );
+    try {
+      await AudioCacheService.instance.clearCache();
+      await _reload(showError: false);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cache audio dibersihkan.')),
+      );
+    } catch (e) {
+      debugPrint('[StorageSheet] gagal menghapus cache: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Gagal menghapus cache audio.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _working = false);
+    }
   }
 
   Future<void> _clearDownloads() async {
@@ -101,16 +122,26 @@ class _StorageSheetState extends State<StorageSheet> {
     );
     if (!confirmed || !mounted) return;
     setState(() => _working = true);
-    await DownloadService().removeAllDownloads();
-    if (mounted) {
-      await context.read<LibraryProvider>().refreshDownloaded();
+    try {
+      await DownloadService().removeAllDownloads();
+      if (mounted) {
+        await context.read<LibraryProvider>().refreshDownloaded();
+      }
+      await _reload(showError: false);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Semua unduhan offline dihapus.')),
+      );
+    } catch (e) {
+      debugPrint('[StorageSheet] gagal menghapus unduhan: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Gagal menghapus unduhan offline.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _working = false);
     }
-    await _reload();
-    if (!mounted) return;
-    setState(() => _working = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Semua unduhan offline dihapus.')),
-    );
   }
 
   @override

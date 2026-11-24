@@ -236,16 +236,22 @@ class LibraryProvider with ChangeNotifier {
     }
   }
 
-  Future<void> createPlaylist(String name) async {
-    if (name.trim().isEmpty) return;
+  /// Membuat playlist baru dan mengembalikan ID-nya.
+  ///
+  /// ID dikembalikan agar pemanggil bisa langsung menambahkan lagu ke playlist
+  /// yang baru dibuat, bukan mencarinya berdasarkan nama (nama bisa duplikat).
+  Future<String?> createPlaylist(String name) async {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) return null;
     final id = 'pl_${DateTime.now().microsecondsSinceEpoch}';
     final playlists = await _currentPlaylistMap();
     playlists[id] = {
-      'name': name.trim(),
+      'name': trimmed,
       'tracks': <Map<String, dynamic>>[],
     };
     await _store.savePlaylists(playlists);
     await refreshLibrary();
+    return id;
   }
 
   Future<void> importFullPlaylist(String name, List<TrackModel> tracks) async {

@@ -66,5 +66,15 @@ void main() {
       expect(name.contains('/'), isFalse);
       expect(name.contains(':'), isFalse);
     });
+
+    test('nama folder ekspor tidak bisa keluar dari direktori tujuan', () {
+      expect(DownloadService.sanitizeFolderName('..'), 'Download');
+      expect(DownloadService.sanitizeFolderName('.'), 'Download');
+      expect(DownloadService.sanitizeFolderName('...'), 'Download');
+      expect(DownloadService.sanitizeFolderName('  '), 'Download');
+      expect(DownloadService.sanitizeFolderName('Musik'), 'Musik');
+      expect(DownloadService.sanitizeFolderName('Musik/..'), 'Musik_');
+      expect(DownloadService.sanitizeFolderName('Musik.'), 'Musik');
+    });
   });
 }

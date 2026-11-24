@@ -33,8 +33,12 @@ class _SearchTabState extends State<SearchTab> {
   Timer? _debounce;
   List<TrackModel> _results = [];
   bool _isLoading = false;
+  String? _searchError;
   String _currentQuery = '';
   List<String> _recentSearches = [];
+
+  /// Token untuk membuang hasil pencarian lama yang selesai terlambat.
+  int _searchToken = 0;
 
   static const List<_GenreCardData> _genres = [
     _GenreCardData('Pop Indo', 'Pop Indonesia', [Color(0xFFE1306C), Color(0xFF833AB4)], Icons.music_note),
@@ -107,11 +111,13 @@ class _SearchTabState extends State<SearchTab> {
 
   void _onSearchChanged(String query) {
     _debounce?.cancel();
+    _searchToken++;
     if (query.trim().isEmpty) {
       setState(() {
         _currentQuery = '';
         _results = [];
         _isLoading = false;
+        _searchError = null;
       });
       return;
     }
@@ -122,22 +128,30 @@ class _SearchTabState extends State<SearchTab> {
   }
 
   Future<void> _executeSearch(String query) async {
+    // Batalkan debounce yang masih menunggu agar pencarian yang dipicu
+    // langsung (Enter / riwayat) tidak ditimpa query lama.
+    _debounce?.cancel();
+    final token = ++_searchToken;
     setState(() {
       _currentQuery = query;
       _isLoading = true;
+      _searchError = null;
     });
 
-    _saveSearchQuery(query);
+    unawaited(_saveSearchQuery(query));
     List<TrackModel> res = [];
+    String? error;
     try {
       res = await _musicService.searchMusic(query);
     } catch (e) {
       debugPrint('[SearchTab] pencarian gagal untuk "$query": $e');
+      error = 'Pencarian gagal. Periksa koneksi internet lalu coba lagi.';
     } finally {
-      if (mounted && _currentQuery == query) {
+      if (mounted && token == _searchToken && _currentQuery == query) {
         setState(() {
           _results = res;
           _isLoading = false;
+          _searchError = error;
         });
       }
     }
@@ -194,15 +208,19 @@ class _SearchTabState extends State<SearchTab> {
                     hintText: 'Apa yang ingin kamu dengarkan?',
                     hintStyle: const TextStyle(color: AppTheme.textSecondary, fontSize: 14),
                     prefixIcon: const Icon(Icons.search, color: AppTheme.textSecondary, size: 22),
-                    suffixIcon: _searchController.text.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.close, color: AppTheme.textSecondary, size: 20),
-                            onPressed: () {
-                              _searchController.clear();
-                              _onSearchChanged('');
-                            },
-                          )
-                        : null,
+                    suffixIcon: ValueListenableBuilder<TextEditingValue>(
+                      valueListenable: _searchController,
+                      builder: (context, value, _) {
+                        if (value.text.isEmpty) return const SizedBox.shrink();
+                        return IconButton(
+                          icon: const Icon(Icons.close, color: AppTheme.textSecondary, size: 20),
+                          onPressed: () {
+                            _searchController.clear();
+                            _onSearchChanged('');
+                          },
+                        );
+                      },
+                    ),
                     border: InputBorder.none,
                     contentPadding: const EdgeInsets.symmetric(vertical: 14),
                   ),
@@ -229,6 +247,48 @@ class _SearchTabState extends State<SearchTab> {
   }
 
   Widget _buildResultsList(PlayerProvider player) {
+    if (_searchError != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.wifi_off,
+                size: 54,
+                color: AppTheme.textSecondary.withValues(alpha: 0.4),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                _searchError!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 14,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryRose,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                ),
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const Text('Coba Lagi'),
+                onPressed: () => _executeSearch(_currentQuery),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     if (_results.isEmpty) {
       return Center(
         child: Column(

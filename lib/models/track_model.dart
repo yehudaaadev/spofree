@@ -136,8 +136,13 @@ class TrackModel {
       RegExp(r'\([^)]*?(official|video|audio|4k|hd|hq|lyrics|lyric|lirik|letra|remastered|visualizer|music\s*video|mv|sub\.?\s*indonesian?|terjemahan|legendado)[^)]*?\)', caseSensitive: false),
       RegExp(r'\[[^\]]*?(official|video|audio|4k|hd|hq|lyrics|lyric|lirik|letra|remastered|visualizer|music\s*video|mv|sub\.?\s*indonesian?|terjemahan|legendado|best\s*live)[^\]]*?\]', caseSensitive: false),
       RegExp(r'\|\s*(mtv\s*music|lirik\s*terjemahan|sub\.?\s*indonesian?).*$', caseSensitive: false),
-      RegExp(r'\s*ft\.?.*$', caseSensitive: false),
-      RegExp(r'\s*feat\.?.*$', caseSensitive: false),
+      // Kredit fitur dalam kurung, mis. "(feat. X)" atau "[ft. X]".
+      RegExp(r'\s*[\(\[]\s*(?:ft|feat)\.?\s*[^)\]]*[\)\]]', caseSensitive: false),
+      // Kredit fitur di akhir judul, mis. "Song ft. X" atau "Song feat X".
+      // Wajib didahului spasi agar kata seperti "After" tidak ikut terpotong.
+      RegExp(r'\s+(?:ft|feat)\.?\s*.*$', caseSensitive: false),
+      // Jaring pengaman untuk kurung fitur yang tidak tertutup.
+      RegExp(r'\s*[\(\[]\s*(?:ft|feat)\.?\s*.*$', caseSensitive: false),
     ];
     for (final reg in regexes) {
       title = title.replaceAll(reg, '');

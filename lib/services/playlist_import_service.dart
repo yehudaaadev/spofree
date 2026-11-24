@@ -16,6 +16,9 @@ class ImportedPlaylistResult {
   });
 }
 
+/// Sumber playlist yang didukung untuk impor tautan.
+enum PlaylistSource { youtube, spotify }
+
 class PlaylistImportService {
   final YoutubeExplode _yt = YoutubeClient.instance.client;
   final Dio _dio = Dio(
@@ -30,19 +33,46 @@ class PlaylistImportService {
     ),
   );
 
+  /// Sumber playlist yang dikenali dari sebuah tautan.
+  static PlaylistSource? detectSource(String url) {
+    final uri = Uri.tryParse(url.trim());
+    if (uri == null) return null;
+
+    if (uri.scheme == 'spotify') return PlaylistSource.spotify;
+
+    // Deteksi berdasarkan host, bukan substring. Dengan begitu tautan seperti
+    // "https://contoh.com/?next=youtube.com" tidak salah dikenali.
+    final host = uri.host.toLowerCase();
+    if (_isHostOrSubdomain(host, 'youtube.com') ||
+        _isHostOrSubdomain(host, 'youtube-nocookie.com') ||
+        host == 'youtu.be') {
+      return PlaylistSource.youtube;
+    }
+    if (_isHostOrSubdomain(host, 'spotify.com')) {
+      return PlaylistSource.spotify;
+    }
+    return null;
+  }
+
+  /// True bila [host] sama dengan [domain] atau merupakan subdomainnya.
+  static bool _isHostOrSubdomain(String host, String domain) {
+    return host == domain || host.endsWith('.$domain');
+  }
+
   /// Klien YouTube dipakai bersama, sehingga tidak ada resource per-instance
   /// yang perlu ditutup.
   Future<ImportedPlaylistResult> importFromUrl(String url) async {
     final cleanUrl = url.trim();
 
-    if (cleanUrl.contains('youtube.com') ||
-        cleanUrl.contains('youtu.be')) {
-      return _importYouTubePlaylist(cleanUrl);
-    } else if (cleanUrl.contains('spotify.com') ||
-        cleanUrl.startsWith('spotify:')) {
-      return _importSpotifyPlaylist(cleanUrl);
-    } else {
-      throw Exception('Format URL tidak dikenali. Gunakan tautan Spotify atau YouTube Playlist.');
+    switch (detectSource(cleanUrl)) {
+      case PlaylistSource.youtube:
+        return _importYouTubePlaylist(cleanUrl);
+      case PlaylistSource.spotify:
+        return _importSpotifyPlaylist(cleanUrl);
+      case null:
+        throw Exception(
+          'Format URL tidak dikenali. Gunakan tautan Spotify atau YouTube Playlist.',
+        );
     }
   }
 

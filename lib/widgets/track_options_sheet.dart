@@ -528,13 +528,9 @@ class TrackOptionsSheet extends StatelessWidget {
               final name = controller.text.trim();
               if (name.isNotEmpty) {
                 Navigator.pop(dlgCtx);
-                await library.createPlaylist(name);
-                if (library.playlists.isNotEmpty) {
-                  final newPl = library.playlists.firstWhere(
-                    (p) => p.name == name,
-                    orElse: () => library.playlists.last,
-                  );
-                  await library.addTrackToPlaylist(newPl.id, track);
+                final newPlaylistId = await library.createPlaylist(name);
+                if (newPlaylistId != null) {
+                  await library.addTrackToPlaylist(newPlaylistId, track);
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
@@ -557,6 +553,6 @@ class TrackOptionsSheet extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ).whenComplete(controller.dispose);
   }
 }

@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:spotify_pribadi/models/track_model.dart';
 import 'package:spotify_pribadi/providers/library_provider.dart';
+import 'package:spotify_pribadi/services/local_library_service.dart';
 import 'package:spotify_pribadi/services/playlist_backup_service.dart';
 import 'package:spotify_pribadi/services/playlist_share_service.dart';
 
@@ -99,6 +100,71 @@ void main() {
       // Sekarang lagu_a harus kembali menjadi yang paling atas
       expect(provider.likedList.first.id, equals('lagu_a'));
       expect(provider.likedList[1].id, equals('lagu_b'));
+    });
+  });
+
+  group('LibraryProvider.createPlaylist', () {
+    test('mengembalikan ID unik meskipun nama playlist sama', () async {
+      final provider = LibraryProvider();
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      final firstId = await provider.createPlaylist('Favorit');
+      final secondId = await provider.createPlaylist('Favorit');
+
+      expect(firstId, isNotNull);
+      expect(secondId, isNotNull);
+      expect(firstId, isNot(equals(secondId)));
+      expect(
+        provider.playlists.where((p) => p.name == 'Favorit').length,
+        2,
+      );
+    });
+  });
+
+  group('LocalLibraryService robustness', () {
+    const track = TrackModel(
+      id: 'local_track',
+      title: 'Lagu Lokal',
+      artist: 'Artis',
+      album: 'Album',
+      artworkUrl: '',
+      durationMs: 100000,
+    );
+
+    test('playlist rusak dilewati tanpa menggagalkan playlist lain', () async {
+      SharedPreferences.setMockInitialValues({
+        'wave_local_library': jsonEncode({
+          'playlists': {
+            'good': {'name': 'Bagus', 'tracks': []},
+            'bad': 'bukan map',
+            'badTracks': {'name': 'Track Rusak', 'tracks': 'bukan list'},
+          },
+        }),
+      });
+
+      final service = LocalLibraryService();
+      final playlists = await service.loadPlaylists();
+
+      expect(playlists, hasLength(2));
+      expect(playlists.any((p) => p['name'] == 'Bagus'), isTrue);
+      expect(playlists.any((p) => p['name'] == 'Track Rusak'), isTrue);
+    });
+
+    test('saveLiked dan savePlaylists tidak saling menimpa', () async {
+      SharedPreferences.setMockInitialValues({});
+      final service = LocalLibraryService();
+
+      await Future.wait([
+        service.saveLiked({'local_track': track}),
+        service.savePlaylists({
+          'pl': {'name': 'Playlist', 'tracks': <Map<String, dynamic>>[]},
+        }),
+      ]);
+
+      final liked = await service.loadLiked();
+      final playlists = await service.loadPlaylists();
+      expect(liked, hasLength(1));
+      expect(playlists, hasLength(1));
     });
   });
 

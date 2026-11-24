@@ -18,6 +18,7 @@ class _ImportPlaylistDialogState extends State<ImportPlaylistDialog> {
   final PlaylistImportService _importService = PlaylistImportService();
 
   bool _isAnalyzing = false;
+  bool _isSaving = false;
   String? _errorMessage;
   ImportedPlaylistResult? _result;
 
@@ -59,10 +60,21 @@ class _ImportPlaylistDialogState extends State<ImportPlaylistDialog> {
   }
 
   Future<void> _pasteFromClipboard() async {
-    final data = await Clipboard.getData(Clipboard.kTextPlain);
-    if (data?.text != null) {
-      _urlController.text = data!.text!.trim();
-      _analyzeUrl();
+    try {
+      final data = await Clipboard.getData(Clipboard.kTextPlain);
+      if (!mounted) return;
+      final text = data?.text?.trim();
+      if (text == null || text.isEmpty) {
+        setState(() => _errorMessage = 'Papan klip tidak berisi tautan.');
+        return;
+      }
+      _urlController.text = text;
+      await _analyzeUrl();
+    } catch (e) {
+      debugPrint('[ImportPlaylistDialog] gagal membaca papan klip: $e');
+      if (mounted) {
+        setState(() => _errorMessage = 'Gagal membaca papan klip.');
+      }
     }
   }
 
@@ -210,19 +222,22 @@ class _ImportPlaylistDialogState extends State<ImportPlaylistDialog> {
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         ),
-                        onPressed: () {
-                          final player = context.read<PlayerProvider>();
-                          if (_result!.tracks.isNotEmpty) {
-                            player.playTrack(_result!.tracks.first, queue: _result!.tracks);
-                            Navigator.of(context).pop();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Memutar ${_result!.title} (${_result!.tracks.length} lagu)'),
-                                backgroundColor: AppTheme.primaryRose,
-                              ),
-                            );
-                          }
-                        },
+                        onPressed: (_isSaving || _result!.tracks.isEmpty)
+                            ? null
+                            : () {
+                                final player = context.read<PlayerProvider>();
+                                player.playTrack(
+                                  _result!.tracks.first,
+                                  queue: _result!.tracks,
+                                );
+                                Navigator.of(context).pop();
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Memutar ${_result!.title} (${_result!.tracks.length} lagu)'),
+                                    backgroundColor: AppTheme.primaryRose,
+                                  ),
+                                );
+                              },
                         child: const Text('Putar Langsung', style: TextStyle(fontSize: 13)),
                       ),
                     ),
@@ -235,20 +250,47 @@ class _ImportPlaylistDialogState extends State<ImportPlaylistDialog> {
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         ),
-                        onPressed: () async {
-                          final lib = context.read<LibraryProvider>();
-                          await lib.importFullPlaylist(_result!.title, _result!.tracks);
-                          if (context.mounted) {
-                            Navigator.of(context).pop();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Playlist ${_result!.title} berhasil disimpan ke Koleksi!'),
-                                backgroundColor: AppTheme.primaryRose,
-                              ),
-                            );
-                          }
-                        },
-                        child: const Text('Simpan Koleksi', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                        onPressed: (_isSaving || _result!.tracks.isEmpty)
+                            ? null
+                            : () async {
+                                final lib = context.read<LibraryProvider>();
+                                setState(() {
+                                  _isSaving = true;
+                                  _errorMessage = null;
+                                });
+                                try {
+                                  await lib.importFullPlaylist(
+                                    _result!.title,
+                                    _result!.tracks,
+                                  );
+                                  if (!context.mounted) return;
+                                  Navigator.of(context).pop();
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Playlist ${_result!.title} berhasil disimpan ke Koleksi!'),
+                                      backgroundColor: AppTheme.primaryRose,
+                                    ),
+                                  );
+                                } catch (e) {
+                                  debugPrint('[ImportPlaylistDialog] gagal menyimpan: $e');
+                                  if (!mounted) return;
+                                  setState(() {
+                                    _isSaving = false;
+                                    _errorMessage =
+                                        'Gagal menyimpan playlist. Coba lagi.';
+                                  });
+                                }
+                              },
+                        child: _isSaving
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text('Simpan Koleksi', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                       ),
                     ),
                   ],

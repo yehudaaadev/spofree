@@ -141,6 +141,7 @@ class PlayerProvider with ChangeNotifier {
   Future<void> _playChain = Future<void>.value();
   int _playToken = 0;
   String? _errorMessage;
+  bool _disposed = false;
 
   /// Id lagu yang sudah dicoba ulang dengan stream MP4/AAC.
   ///
@@ -338,6 +339,9 @@ class PlayerProvider with ChangeNotifier {
     // posisi tengah lagu, posisi tidak pernah nol sehingga timeout tidak pernah
     // terpicu. `_isLoadingAudio` adalah penanda yang tepat.
     _isLoadingAudio = false;
+    // Batalkan rantai pemuatan yang masih berjalan agar tidak menimpa error
+    // dengan sumber audio yang datang terlambat.
+    _playToken++;
     _setError(
       'Lagu "${track.title}" tidak dapat dimuat. Periksa koneksi lalu coba lagi.',
     );
@@ -629,7 +633,13 @@ class PlayerProvider with ChangeNotifier {
           Duration(milliseconds: (_crossfadeSeconds * 1000 ~/ 5).clamp(100, 1000));
       await _fadeVolumeTo(0.1, stepDuration);
       if (_sleepFadeActive) return;
-      await next();
+      if (_loopMode == LoopMode.one && _currentTrack != null) {
+        // Repeat-one: ulangi lagu yang sama tanpa memuat ulang stream.
+        await _player.seek(Duration.zero);
+        await _player.play();
+      } else {
+        await next();
+      }
       if (_sleepFadeActive) return;
       await _fadeVolumeTo(1.0, const Duration(milliseconds: 200));
     } catch (e) {
@@ -1325,11 +1335,26 @@ class PlayerProvider with ChangeNotifier {
     if (_queue.length <= _maxQueueLength) return;
     final excess = _queue.length - _maxQueueLength;
     final removable = <int>[];
-    for (int i = 0; i < _queue.length; i++) {
-      if (i != _currentIndex) removable.add(i);
-      if (removable.length == excess) break;
+
+    // Buang dari ekor antrean (lagu paling jauh) dan lindungi lagu yang
+    // dimasukkan lewat "Putar Berikutnya". Dengan begitu lagu yang baru
+    // disisipkan setelah lagu aktif tidak langsung terhapus.
+    for (int i = _queue.length - 1; i >= 0 && removable.length < excess; i--) {
+      if (i == _currentIndex) continue;
+      if (_userQueueIds.contains(_queue[i].id)) continue;
+      removable.add(i);
     }
-    for (final index in removable.reversed) {
+    // Bila masih kurang (mis. semua sisa lagu adalah "Putar Berikutnya"),
+    // buang sisanya kecuali lagu yang sedang diputar.
+    if (removable.length < excess) {
+      for (int i = _queue.length - 1; i >= 0 && removable.length < excess; i--) {
+        if (i == _currentIndex || removable.contains(i)) continue;
+        removable.add(i);
+      }
+    }
+    // removable tersusun dari indeks terbesar ke terkecil, sehingga aman
+    // dihapus berurutan tanpa menggeser indeks yang belum diproses.
+    for (final index in removable) {
       _queue.removeAt(index);
     }
     // Buang penanda "Putar Berikutnya" untuk lagu yang sudah tidak ada.
@@ -1710,7 +1735,16 @@ class PlayerProvider with ChangeNotifier {
   }
 
   @override
+  void notifyListeners() {
+    // Respons jaringan (lirik, SponsorBlock, unduhan) bisa selesai setelah
+    // provider dibuang. Jangan panggil ChangeNotifier yang sudah di-dispose.
+    if (_disposed) return;
+    super.notifyListeners();
+  }
+
+  @override
   void dispose() {
+    _disposed = true;
     _sleepTimer?.cancel();
     _persistTimer?.cancel();
     unawaited(_persistPlaybackState());

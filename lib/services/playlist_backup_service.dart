@@ -185,15 +185,24 @@ class PlaylistBackupService {
     return RegExp(r'^[a-zA-Z]:[\\/]').hasMatch(value);
   }
 
+  /// True bila [host] sama dengan [domain] atau merupakan subdomainnya.
+  ///
+  /// Perbandingan `endsWith` tanpa titik bisa salah mengenali domain seperti
+  /// "notyoutube.com" sebagai YouTube.
+  static bool _isHostOrSubdomain(String host, String domain) {
+    return host == domain || host.endsWith('.$domain');
+  }
+
   static String? _youTubeIdFromUrl(String value) {
     final uri = Uri.tryParse(value);
     if (uri == null) return null;
     final host = uri.host.toLowerCase();
-    if (host.endsWith('youtu.be')) {
+    if (host == 'youtu.be') {
       final id = uri.pathSegments.isNotEmpty ? uri.pathSegments.first : null;
       return (id != null && id.length == 11) ? id : null;
     }
-    if (host.endsWith('youtube.com') || host.endsWith('youtube-nocookie.com')) {
+    if (_isHostOrSubdomain(host, 'youtube.com') ||
+        _isHostOrSubdomain(host, 'youtube-nocookie.com')) {
       final v = uri.queryParameters['v'];
       if (v != null && v.length == 11) return v;
       if (uri.pathSegments.length >= 2 &&
@@ -208,10 +217,12 @@ class PlaylistBackupService {
   }
 
   static String _titleFromUri(String value) {
-    final uri = Uri.tryParse(value);
+    // Samakan pemisah path agar jalur Windows/UNC ikut terbaca sebagai segmen.
+    final normalized = value.replaceAll('\\', '/');
+    final uri = Uri.tryParse(normalized);
     final segment = (uri != null && uri.pathSegments.isNotEmpty)
         ? uri.pathSegments.last
-        : value.split(RegExp(r'[\\/]')).last;
+        : normalized.split('/').last;
     final withoutExt = segment.replaceAll(RegExp(r'\.[a-zA-Z0-9]+$'), '');
     final title = Uri.decodeComponent(withoutExt).replaceAll('_', ' ').trim();
     return title.isEmpty ? 'Lagu Impor' : title;
@@ -238,19 +249,29 @@ class PlaylistBackupService {
       }
 
       if (line.startsWith('#EXTINF:')) {
+        // Metadata baru selalu menggantikan metadata lama. Tanpa reset, entri
+        // #EXTINF yang rusak (tanpa koma) akan memakai judul lagu sebelumnya.
+        currentTitle = null;
+        currentArtist = null;
+        currentDurationSec = 0;
+
         final infoPart = line.substring(8);
         final commaIndex = infoPart.indexOf(',');
         if (commaIndex != -1) {
           final durStr = infoPart.substring(0, commaIndex).trim();
-          currentDurationSec = int.tryParse(durStr) ?? 0;
+          final parsedDuration = int.tryParse(durStr) ?? 0;
+          // Durasi -1 dipakai untuk siaran langsung; jangan disimpan negatif.
+          currentDurationSec = parsedDuration > 0 ? parsedDuration : 0;
           final titlePart = infoPart.substring(commaIndex + 1).trim();
-          final dashIndex = titlePart.indexOf(' - ');
-          if (dashIndex != -1) {
-            currentArtist = titlePart.substring(0, dashIndex).trim();
-            currentTitle = titlePart.substring(dashIndex + 3).trim();
-          } else {
-            currentArtist = 'Artis Tidak Diketahui';
-            currentTitle = titlePart;
+          if (titlePart.isNotEmpty) {
+            final dashIndex = titlePart.indexOf(' - ');
+            if (dashIndex != -1) {
+              currentArtist = titlePart.substring(0, dashIndex).trim();
+              currentTitle = titlePart.substring(dashIndex + 3).trim();
+            } else {
+              currentArtist = 'Artis Tidak Diketahui';
+              currentTitle = titlePart;
+            }
           }
         }
         continue;
@@ -283,8 +304,16 @@ class PlaylistBackupService {
         id = line;
       }
 
-      final title = currentTitle ?? _titleFromUri(line);
-      final artist = currentArtist ?? 'Artis Tidak Diketahui';
+      final fallbackTitle = currentTitle;
+      final fallbackArtist = currentArtist;
+      final title =
+          (fallbackTitle != null && fallbackTitle.isNotEmpty)
+              ? fallbackTitle
+              : _titleFromUri(line);
+      final artist =
+          (fallbackArtist != null && fallbackArtist.isNotEmpty)
+              ? fallbackArtist
+              : 'Artis Tidak Diketahui';
       tracks.add(
         TrackModel(
           id: id,
