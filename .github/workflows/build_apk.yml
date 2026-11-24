@@ -24,7 +24,7 @@ jobs:
     # pengujian, tetapi tag rilis akan ditolak oleh langkah validasi.
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Validate Release Signing
         if: startsWith(github.ref, 'refs/tags/v')
