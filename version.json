@@ -1,7 +1,7 @@
 {
-  "versionCode": 7,
-  "versionName": "1.2.0",
-  "releaseNotes": "Pembaruan kini dicek langsung dari GitHub Releases. Ada panel Penyimpanan (hapus cache/unduhan), pencarian dalam koleksi, lanjutan antrean terakhir, cache lirik offline dengan pengatur offset, opsi unduh hanya via Wi-Fi, dan checksum SHA-256 untuk verifikasi APK.",
+  "versionCode": 8,
+  "versionName": "1.3.0",
+  "releaseNotes": "Berbagi playlist dan lagu disukai lewat kode/QR, pembersihan judul lagu yang lebih akurat, antrean dan playlist yang lebih stabil, keamanan ekspor/rilis, background audio iOS, serta perbaikan ketahanan data dan UX.",
   "downloadUrl": "https://github.com/yehudaaadev/spofree/releases/latest",
   "checksumUrl": "https://github.com/yehudaaadev/spofree/releases/latest/download/SHA256SUMS.txt"
 }

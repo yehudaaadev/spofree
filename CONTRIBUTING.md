@@ -57,8 +57,8 @@ docs(readme): jelaskan perbedaan APK 64-bit dan 32-bit
 4. Commit, lalu push tag:
 
    ```bash
-   git tag v1.2.0
-   git push origin v1.2.0
+   git tag v1.3.0
+   git push origin v1.3.0
    ```
 
 5. Workflow `Build and Release Android APK` membangun kedua APK per-ABI,

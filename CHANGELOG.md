@@ -4,7 +4,7 @@ Semua perubahan penting pada Wave Music dicatat di sini.
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/),
 dan versi mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 
-## [Unreleased]
+## [1.3.0] - 2026-11-24
 
 ### Ditambahkan
 - **Berbagi playlist/lagu disukai tanpa server.** Setiap playlist punya tombol
@@ -29,11 +29,39 @@ dan versi mengikuti [Semantic Versioning](https://semver.org/lang/id/).
   tunduk pada MIT. README, onboarding, dialog Ketentuan, dan CONTRIBUTING
   diperbarui.
 
+### Diperbaiki
+- **Judul lagu tidak lagi terpotong.** `cleanTitle` memakai batas kata saat
+  membersihkan kredit `ft`/`feat`, sehingga judul seperti *After Dark*,
+  *Softcore*, *Feather*, dan *Defeat* tetap utuh.
+- **Antrean tidak menduplikasi lagu aktif.** Queue sheet hanya menampilkan lagu
+  setelah lagu yang sedang diputar dan memakai key unik yang stabil.
+- **Playlist baru langsung menerima lagu.** `createPlaylist` mengembalikan ID,
+  jadi "Buat & Tambah" tidak salah memilih playlist ketika namanya sama.
+- **Crossfade + repeat-one** mengulang lagu yang sama, bukan berpindah lagu.
+- **Trim antrean 300 lagu** membuang lagu paling jauh dan melindungi lagu
+  "Putar Berikutnya" yang baru disisipkan.
+- **Pemulihan data lebih tahan rusak.** Playlist/lagu yang tidak valid dilewati
+  tanpa menggagalkan seluruh koleksi; penulisan `LocalLibraryService`
+  diserialisasi agar tidak saling menimpa.
+- **Impor M3U lebih aman.** Metadata `#EXTINF` rusak tidak bocor ke lagu
+  berikutnya, durasi negatif dinormalisasi, path Windows terbaca benar, dan
+  deteksi host YouTube tidak bisa dikelabui domain serupa.
+- **Pesan error yang jelas** untuk pencarian, pemindaian file lokal, impor
+  playlist, pemulihan backup, dan pengelolaan penyimpanan.
+- **`PlayerProvider` tidak lagi memanggil `notifyListeners` setelah dispose.**
+
+### Keamanan & Platform
+- **Nama folder ekspor** yang hanya berisi titik (`.`, `..`) ditolak untuk
+  mencegah path traversal.
+- **Rilis tag wajib memakai keystore resmi.** CI menolak tag `v*` tanpa
+  `ANDROID_KEYSTORE_BASE64` dan memverifikasi signature APK dengan `apksigner`.
+- **macOS** mendapat entitlement network client + kamera; **iOS** mendapat
+  `UIBackgroundModes = audio` agar pemutaran berlanjut di background.
+
 ### Catatan
-- Fitur ini sudah lolos `flutter analyze`, tes unit/widget, dan build APK
-  rilis, tetapi **belum diuji pada perangkat fisik**. APK rilis publik terbaru
-  masih v1.2.0 dan belum memuat fitur berbagi kode/QR. Build pengembangan
-  sumber ini memakai versi 1.3.0 (Build 8).
+- Sudah lolos `flutter analyze` dan 147 tes (4 tes integrasi CDN YouTube
+  dilewati secara default). APK v1.3.0 dibangun dan ditandatangani oleh CI;
+  pengujian pada perangkat fisik tetap disarankan.
 - Ukuran APK bertambah karena ML Kit bawaan `mobile_scanner`; pemindaian QR
   dapat ditolak izin kameranya tanpa memblokir impor manual.
 

@@ -13,7 +13,7 @@ body:
     attributes:
       label: Versi Wave Music
       description: Terlihat di menu Informasi & Bantuan.
-      placeholder: "1.2.0 (build 7)"
+      placeholder: "1.3.0 (build 8)"
     validations:
       required: true
   - type: dropdown

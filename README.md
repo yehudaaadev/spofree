@@ -19,7 +19,7 @@
 </p>
 
 <p align="center">
-  <strong>Rilis publik: v1.2.0 · build 7</strong><br>
+  <strong>Rilis publik: v1.3.0 · build 8</strong><br>
   <strong>Gratis · Tanpa akun · Tanpa iklan · Tidak untuk dijual</strong>
 </p>
 
@@ -236,7 +236,7 @@ HTTPS. Jangan mengganti aturan ini dengan `android:usesCleartextTraffic="true"`.
 
    Pasang di HP: salin APK ke HP lalu ketuk file-nya (aktifkan "Install unknown apps" bila diminta).
 
-4. Untuk distribusi, push tag `v*` (misalnya `v1.2.0`). Workflow GitHub Actions
+4. Untuk distribusi, push tag `v*` (misalnya `v1.3.0`). Workflow GitHub Actions
    otomatis membangun kedua APK, membuat `SHA256SUMS.txt`, dan melampirkan
    ketiganya ke **GitHub Releases**. Repo ini tidak menyimpan binary APK.
    Signing resmi sudah aktif lewat secret `ANDROID_KEYSTORE_BASE64` dan
@@ -254,14 +254,15 @@ CI GitHub Actions (`.github/workflows/build_apk.yml`) menjalankan kedua perintah
 tersebut pada setiap push/PR, lalu membangun APK per-ABI. GitLab CI
 (`.gitlab-ci.yml`) tetap tersedia sebagai jalur cadangan.
 
-Saat ini ada 131 tes yang lulus (4 tes integrasi CDN YouTube dilewati secara
+Saat ini ada 147 tes yang lulus (4 tes integrasi CDN YouTube dilewati secara
 default). Cakupannya: deteksi format audio, pemetaan kualitas bitrate dan
 pemilihan stream, parser lirik LRC, serialisasi `LyricsLine`, format ukuran
-penyimpanan, serialisasi `TrackModel`, penulisan tag ID3, pembuatan nama berkas
-ekspor, validasi `Range`/`Content-Range` (termasuk server lokal), backup JSON
-v1/v2, antrean "Putar Berikutnya", preferensi unduhan, SponsorBlock, serta
-kode berbagi `WAVE1` (round-trip, kode rusak/gzip bomb, impor 1.000 lagu, dan
-penggabungan tanpa duplikat).
+penyimpanan, serialisasi `TrackModel`, pembersihan metadata judul (termasuk
+regresi kata ber-`ft`/`feat`), penulisan tag ID3, pembuatan nama berkas dan
+folder ekspor, validasi `Range`/`Content-Range` (termasuk server lokal), backup
+JSON v1/v2, impor M3U, deteksi host tautan impor, antrean "Putar Berikutnya",
+preferensi unduhan, SponsorBlock, serta kode berbagi `WAVE1` (round-trip, kode
+rusak/gzip bomb, impor 1.000 lagu, dan penggabungan tanpa duplikat).
 
 Tes integrasi CDN YouTube dilewati secara default. Jalankan dengan:
 

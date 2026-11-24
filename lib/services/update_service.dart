@@ -40,8 +40,8 @@ class UpdateService {
   static final UpdateService instance = UpdateService._();
 
   /// Nilai cadangan; diperbarui dari package info saat aplikasi berjalan.
-  static int currentVersionCode = 7;
-  static String currentVersionName = '1.2.0';
+  static int currentVersionCode = 8;
+  static String currentVersionName = '1.3.0';
   static bool _versionLoaded = false;
 
   /// Membaca versi dari package info agar tidak melenceng dari pubspec.
